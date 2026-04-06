@@ -1,15 +1,25 @@
-import { Leaf, ListChecks, Sprout } from 'lucide-react'
+import { LayoutGrid, Leaf, ListChecks, Sprout } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
 import { useGarden } from '../lib/useGarden'
 import { gardenModeLabel } from '../lib/mode/mode'
 
+/** Hide Zones in bottom nav until the feature is ready (routes still work if linked). */
+const SHOW_ZONES_TAB = false
+
 function TopHeader() {
   const { gardenMode } = useGarden()
+  const location = useLocation()
+  const wide = location.pathname === '/canvas'
   return (
     <header className="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/95 backdrop-blur">
-      <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-4">
+      <div
+        className={clsx(
+          'mx-auto flex items-center justify-between px-4 py-4',
+          wide ? 'max-w-6xl' : 'max-w-xl',
+        )}
+      >
         <div className="flex items-center gap-3">
           <div
             className="grid h-11 w-11 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-stone-200"
@@ -65,6 +75,8 @@ function NavItem({
 }
 
 function BottomNav() {
+  const location = useLocation()
+  const wide = location.pathname === '/canvas'
   return (
     <nav
       className={clsx(
@@ -74,17 +86,30 @@ function BottomNav() {
       )}
       aria-label="Primary"
     >
-      <div className="mx-auto grid max-w-xl grid-cols-3 gap-2">
+      <div
+        className={clsx(
+          'mx-auto grid gap-2',
+          SHOW_ZONES_TAB ? 'grid-cols-4' : 'grid-cols-3',
+          wide ? 'max-w-6xl' : 'max-w-xl',
+        )}
+      >
         <NavItem
           to="/dashboard"
           label="Dashboard"
           icon={<Leaf className="h-5 w-5" />}
         />
         <NavItem
-          to="/zones"
-          label="Zones"
-          icon={<Sprout className="h-5 w-5" />}
+          to="/canvas"
+          label="Plan"
+          icon={<LayoutGrid className="h-5 w-5" />}
         />
+        {SHOW_ZONES_TAB ? (
+          <NavItem
+            to="/zones"
+            label="Zones"
+            icon={<Sprout className="h-5 w-5" />}
+          />
+        ) : null}
         <NavItem
           to="/tasks"
           label="Tasks"
@@ -112,7 +137,10 @@ export function AppShell() {
       <TopHeader />
       <main
         id="main"
-        className="mx-auto w-full max-w-xl pb-6"
+        className={clsx(
+          'mx-auto w-full pb-6',
+          location.pathname === '/canvas' ? 'max-w-6xl px-2 sm:px-4' : 'max-w-xl',
+        )}
         key={location.pathname}
       >
         <Outlet />

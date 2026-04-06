@@ -5,6 +5,7 @@ import { ZonesPage } from './features/zones/ZonesPage'
 import { TasksPage } from './features/tasks/TasksPage'
 import { ZoneDetailPage } from './features/zones/ZoneDetailPage'
 import { SetupFlowPage } from './features/setup/SetupFlowPage'
+import { GardenCanvasPage } from './features/canvas/GardenCanvasPage'
 import { useGarden } from './lib/useGarden'
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/zones" element={<ZonesPage />} />
         <Route path="/zones/:zoneId" element={<ZoneDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/canvas" element={<GardenCanvasPage />} />
         <Route
           path="*"
           element={

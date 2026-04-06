@@ -9,6 +9,41 @@ export interface TaskListItem {
   title: string
   supportiveNote?: string
   completed: boolean
+  /** Optional assistant guidance (muted subtext). */
+  why?: string
+  watchFor?: string
+  doneRight?: string
+}
+
+function TaskGuidanceLines({
+  why,
+  watchFor,
+  doneRight,
+}: {
+  why?: string
+  watchFor?: string
+  doneRight?: string
+}) {
+  const rows: Array<{ label: string; text: string }> = []
+  if (why?.trim()) rows.push({ label: 'Why:', text: why.trim() })
+  if (watchFor?.trim())
+    rows.push({ label: 'Watch for:', text: watchFor.trim() })
+  if (doneRight?.trim())
+    rows.push({ label: 'Done right:', text: doneRight.trim() })
+  if (rows.length === 0) return null
+  return (
+    <div className="mt-2 space-y-1 border-t border-stone-100/90 pt-2">
+      {rows.map((row) => (
+        <p
+          key={row.label}
+          className="text-sm leading-snug text-stone-500"
+        >
+          <span className="font-medium text-stone-600">{row.label}</span>{' '}
+          {row.text}
+        </p>
+      ))}
+    </div>
+  )
 }
 
 export function TaskList({
@@ -81,6 +116,11 @@ export function TaskList({
                 {t.supportiveNote}
               </p>
             ) : null}
+            <TaskGuidanceLines
+              why={t.why}
+              watchFor={t.watchFor}
+              doneRight={t.doneRight}
+            />
           </div>
         </button>
       ))}

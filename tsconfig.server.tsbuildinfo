@@ -1,0 +1,1 @@
+{"root":["./server/devserver.ts","./server/gardenplanhandler.ts","./server/gardenplanjsonschema.ts","./server/testgardenplanlocal.ts","./api/elk/garden-plan.ts","./shared/gardenplancontract.ts"],"version":"5.9.3"}

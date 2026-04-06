@@ -17,6 +17,29 @@ body {
   color: #0c0a09; /* stone-950 */
 }
 
+@keyframes chip-input-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.animate-chip-input-shake {
+  animation: chip-input-shake 0.38s ease-in-out;
+}
+
 /* Respect users who prefer larger text without breaking layout. */
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -24,5 +47,9 @@ body {
     transition-duration: 0.001ms !important;
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .animate-chip-input-shake {
+    animation: none;
   }
 }

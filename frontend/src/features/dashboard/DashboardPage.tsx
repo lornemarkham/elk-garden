@@ -361,7 +361,7 @@ export function DashboardPage() {
 
       <SectionContainer
         title="Zone status"
-        subtitle="A quick glance at your key beds — simple and actionable."
+        subtitle="A quick glance at your key garden areas — simple and actionable."
       >
         <div className="space-y-4">
           {vm.zones.map((z) => (

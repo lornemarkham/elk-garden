@@ -1,15 +1,15 @@
 import type { GardenPlanResponse } from '../shared/gardenPlanContract.js'
 import type { StoredGardenArea } from '../types/storedGarden.js'
 import type { PlanTaskRecord, TaskSection } from './planTaskTypes.js'
-import { areaIdForTask } from './areaTaskIds'
+import { areaIdForTask } from './areaTaskIds.js'
 import {
   computeAreaTimingDisplay,
   recommendedTimingKind,
   taskSortPriorityForArea,
-} from './areaTimingStatus'
-import { THREATS } from './planConstants'
-import { filterNextStepsForUserCrops } from './planNextStepsFilter'
-import { bucketForCrop } from './plantingTimelineVernon'
+} from './areaTimingStatus.js'
+import { THREATS } from './planConstants.js'
+import { filterNextStepsForUserCrops } from './planNextStepsFilter.js'
+import { bucketForCrop } from './plantingTimelineVernon.js'
 import {
   appendTimingLine,
   earlyGrowthTimingHint,
@@ -19,8 +19,8 @@ import {
   withPlantTiming,
   withPrepTiming,
   withWaterTiming,
-} from './taskTimingHints'
-import { guidanceForTaskId } from './taskGuidance'
+} from './taskTimingHints.js'
+import { guidanceForTaskId } from './taskGuidance.js'
 
 const GARDEN_ID = 'garden_elk_home'
 

@@ -1,9 +1,9 @@
 import type { GardenPlanResponse } from '../shared/gardenPlanContract.js'
 import type { StoredGardenArea } from '../types/storedGarden.js'
 import type { PlanTaskRecord } from './planTaskTypes.js'
-import { buildGardenTasksFromState } from './gardenTaskBuilder'
+import { buildGardenTasksFromState } from './gardenTaskBuilder.js'
 
-export { buildGardenTasksFromState } from './gardenTaskBuilder'
+export { buildGardenTasksFromState } from './gardenTaskBuilder.js'
 
 /** Backwards-compatible name: full task list from plan + beds + threats + crops. */
 export function generatePlanTasksFromElkPlan(

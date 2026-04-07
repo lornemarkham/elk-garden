@@ -1,5 +1,5 @@
-import type { TimelineBucketId } from './plantingTimelineVernon'
-import { bucketForCrop } from './plantingTimelineVernon'
+import type { TimelineBucketId } from './plantingTimelineVernon.js'
+import { bucketForCrop } from './plantingTimelineVernon.js'
 
 /** Join base note + timing / “why” lines for task supportive notes. */
 export function appendTimingLine(

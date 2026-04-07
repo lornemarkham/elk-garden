@@ -1,5 +1,5 @@
 import type { StoredGardenArea } from '../types/storedGarden.js'
-import { bucketForCrop } from './plantingTimelineVernon'
+import { bucketForCrop } from './plantingTimelineVernon.js'
 
 export type GardenAreaStatus =
   | 'not_started'

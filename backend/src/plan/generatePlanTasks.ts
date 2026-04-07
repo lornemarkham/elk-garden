@@ -1,4 +1,4 @@
-import type { GardenPlanResponse } from '../../../shared/gardenPlanContract.js'
+import type { GardenPlanResponse } from '../shared/gardenPlanContract.js'
 import type { StoredGardenArea } from '../types/storedGarden.js'
 import type { PlanTaskRecord } from './planTaskTypes.js'
 import { buildGardenTasksFromState } from './gardenTaskBuilder'

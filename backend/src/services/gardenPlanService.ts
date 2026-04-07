@@ -6,7 +6,7 @@ import {
   type GardenPlanAreaRow,
   type GardenPlanRequest,
   type GardenPlanResponse,
-} from '../../../shared/gardenPlanContract.js'
+} from '../shared/gardenPlanContract.js'
 import { GARDEN_PLAN_JSON_SCHEMA } from '../schemas/gardenPlanJsonSchema.js'
 
 function extractFencedJson(content: string): string | null {

@@ -136,7 +136,7 @@ export function AppShell() {
           CONTENT_MAX,
         )}
       >
-        <div className="mb-4 flex flex-wrap justify-end gap-2">
+        <div className="relative z-50 mb-4 flex flex-wrap justify-end gap-2">
           <NavLink
             to={inIdeaVault ? '/dashboard' : '/ideas'}
             className={({ isActive }) =>

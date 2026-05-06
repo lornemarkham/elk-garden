@@ -128,6 +128,7 @@ function formatEventTime(capturedAtISO: string) {
 export function FakeSensorPanel({ enabled }: { enabled: boolean }) {
   const { garden, ingestSignal } = useGardenStore()
   const [recentEvents, setRecentEvents] = useState<RecentFakeEvent[]>([])
+  const [expanded, setExpanded] = useState(false)
 
   if (!garden || !enabled) return null
 
@@ -163,85 +164,102 @@ export function FakeSensorPanel({ enabled }: { enabled: boolean }) {
   const lastEvent = recentEvents[0]
 
   return (
-    <aside className="fixed right-3 top-3 z-40 w-[min(19rem,calc(100vw-1.5rem))] rounded-2xl bg-white/95 p-3 text-xs shadow-xl ring-1 ring-stone-200 backdrop-blur">
-      <div>
-        <p className="font-bold text-stone-900">Fake Sensor Panel</p>
-        <p className="mt-0.5 text-[0.68rem] leading-snug text-stone-500">
-          Demo mode: simulate future sensor, camera, weather, and human garden
-          signals.
-        </p>
-      </div>
+    <aside className="fixed bottom-[6.25rem] right-3 z-40 w-[min(19rem,calc(100vw-1.5rem))] rounded-2xl bg-white/95 p-3 text-xs shadow-xl ring-1 ring-stone-200 backdrop-blur sm:bottom-auto sm:top-20">
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        className="flex w-full items-start justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        aria-expanded={expanded}
+      >
+        <span>
+          <span className="block font-bold text-stone-900 sm:hidden">
+            Sensor Panel
+          </span>
+          <span className="hidden font-bold text-stone-900 sm:block">
+            Fake Sensor Panel
+          </span>
+          <span className="mt-0.5 block text-[0.68rem] leading-snug text-stone-500">
+            Demo mode: simulate future sensor, camera, weather, and human garden
+            signals.
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-stone-100 px-2 py-1 text-[0.62rem] font-bold uppercase tracking-wide text-stone-600 ring-1 ring-stone-200 sm:hidden">
+          {expanded ? 'Hide' : 'Open'}
+        </span>
+      </button>
 
-      {lastEvent ? (
-        <div className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100">
-          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-700">
-            Last sent
-          </p>
-          <p className="mt-0.5 font-bold text-emerald-950">
-            {lastEvent.zoneLabel}: {lastEvent.label}
-          </p>
-          <p className="mt-1 text-[0.68rem] font-semibold text-emerald-800">
-            {lastEvent.added
-              ? 'New task/recommendation added'
-              : 'Already active, no duplicate added'}
-          </p>
-          {lastEvent.urgencyScore && lastEvent.severity ? (
-            <p className="mt-1 text-[0.68rem] font-semibold text-stone-700">
-              Urgency: {lastEvent.urgencyScore}/100 · Severity:{' '}
-              {lastEvent.severity}
+      <div className={expanded ? 'mt-3 block sm:block' : 'hidden sm:mt-3 sm:block'}>
+        {lastEvent ? (
+          <div className="rounded-2xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100">
+            <p className="text-[0.62rem] font-bold uppercase tracking-wide text-emerald-700">
+              Last sent
             </p>
-          ) : null}
-          {lastEvent.repeatedSignal ? (
-            <p className="mt-1 text-[0.68rem] font-semibold text-stone-700">
-              Repeated signal detected — future version should verify sensor
-              health.
+            <p className="mt-0.5 font-bold text-emerald-950">
+              {lastEvent.zoneLabel}: {lastEvent.label}
             </p>
-          ) : null}
-        </div>
-      ) : null}
+            <p className="mt-1 text-[0.68rem] font-semibold text-emerald-800">
+              {lastEvent.added
+                ? 'New task/recommendation added'
+                : 'Already active, no duplicate added'}
+            </p>
+            {lastEvent.urgencyScore && lastEvent.severity ? (
+              <p className="mt-1 text-[0.68rem] font-semibold text-stone-700">
+                Urgency: {lastEvent.urgencyScore}/100 · Severity:{' '}
+                {lastEvent.severity}
+              </p>
+            ) : null}
+            {lastEvent.repeatedSignal ? (
+              <p className="mt-1 text-[0.68rem] font-semibold text-stone-700">
+                Repeated signal detected — future version should verify sensor
+                health.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
-      <div className="mt-3 grid gap-1.5">
-        {FAKE_EVENTS.map((event) => (
-          <button
-            key={`${event.zoneId}-${event.kind}`}
-            type="button"
-            onClick={() => sendFakeEvent(event)}
-            className="rounded-xl bg-stone-50 px-3 py-2 text-left font-semibold text-stone-800 ring-1 ring-stone-200 transition hover:bg-emerald-50 hover:text-emerald-950 hover:ring-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-          >
-            {event.label}
-          </button>
-        ))}
+        <div className="mt-3 grid gap-1.5">
+          {FAKE_EVENTS.map((event) => (
+            <button
+              key={`${event.zoneId}-${event.kind}`}
+              type="button"
+              onClick={() => sendFakeEvent(event)}
+              className="rounded-xl bg-stone-50 px-3 py-2 text-left font-semibold text-stone-800 ring-1 ring-stone-200 transition hover:bg-emerald-50 hover:text-emerald-950 hover:ring-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+            >
+              {event.label}
+            </button>
+          ))}
+        </div>
+
+        {recentEvents.length > 0 ? (
+          <div className="mt-3 border-t border-stone-200 pt-2">
+            <p className="text-[0.62rem] font-bold uppercase tracking-wide text-stone-500">
+              Recent Fake Events
+            </p>
+            <ol className="mt-1.5 grid gap-1">
+              {recentEvents.map((event) => (
+                <li
+                  key={event.id}
+                  className="flex items-start justify-between gap-2 rounded-xl bg-stone-50 px-2.5 py-1.5 text-[0.68rem] ring-1 ring-stone-100"
+                >
+                  <span className="min-w-0">
+                    <span className="font-bold text-stone-800">{event.zoneLabel}</span>
+                    <span className="text-stone-500"> · {event.label}</span>
+                    {event.urgencyScore && event.severity ? (
+                      <span className="block text-stone-500">
+                        Urgency: {event.urgencyScore}/100 · Severity:{' '}
+                        {event.severity}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 font-semibold text-stone-500">
+                    {formatEventTime(event.capturedAtISO)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
       </div>
-
-      {recentEvents.length > 0 ? (
-        <div className="mt-3 border-t border-stone-200 pt-2">
-          <p className="text-[0.62rem] font-bold uppercase tracking-wide text-stone-500">
-            Recent Fake Events
-          </p>
-          <ol className="mt-1.5 grid gap-1">
-            {recentEvents.map((event) => (
-              <li
-                key={event.id}
-                className="flex items-start justify-between gap-2 rounded-xl bg-stone-50 px-2.5 py-1.5 text-[0.68rem] ring-1 ring-stone-100"
-              >
-                <span className="min-w-0">
-                  <span className="font-bold text-stone-800">{event.zoneLabel}</span>
-                  <span className="text-stone-500"> · {event.label}</span>
-                  {event.urgencyScore && event.severity ? (
-                    <span className="block text-stone-500">
-                      Urgency: {event.urgencyScore}/100 · Severity:{' '}
-                      {event.severity}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 font-semibold text-stone-500">
-                  {formatEventTime(event.capturedAtISO)}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ) : null}
     </aside>
   )
 }

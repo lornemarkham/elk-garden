@@ -61,10 +61,12 @@ function alertRowClass(severity: DashboardAlertSeverity): string {
   switch (severity) {
     case 'critical':
       return 'border-l-[5px] border-l-rose-500 bg-rose-50/55 ring-rose-200/85'
-    case 'warning':
+    case 'urgent':
+      return 'border-l-[5px] border-l-pink-500 bg-pink-50/70 ring-pink-200/85'
+    case 'watch':
       return 'border-l-[5px] border-l-amber-400 bg-amber-50/85 ring-amber-200/85'
     case 'info':
-      return 'border-l-[5px] border-l-sky-400 bg-sky-50/75 ring-sky-200/90'
+      return 'border-l-[5px] border-l-emerald-400 bg-emerald-50/70 ring-emerald-200/90'
   }
 }
 

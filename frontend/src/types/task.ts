@@ -1,4 +1,5 @@
 import type { ID } from './garden'
+import type { SignalDerivedSeverity } from './recommendation'
 
 export interface Task {
   id: ID
@@ -7,5 +8,8 @@ export interface Task {
   title: string
   supportiveNote?: string
   completed: boolean
+  urgencyScore?: number
+  severity?: SignalDerivedSeverity
+  capturedAtISO?: string
 }
 

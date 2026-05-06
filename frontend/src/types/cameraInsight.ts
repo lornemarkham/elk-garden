@@ -1,4 +1,5 @@
 import type { ID } from './garden'
+import type { SignalDerivedSeverity } from './recommendation'
 
 export type CameraInsightKind = 'animalActivity' | 'plantStress' | 'growthIssue'
 
@@ -11,5 +12,7 @@ export interface CameraInsight {
   detail: string
   capturedAtISO: string
   confidence: 'low' | 'medium' | 'high'
+  urgencyScore?: number
+  severity?: SignalDerivedSeverity
 }
 

@@ -6,14 +6,20 @@ import type {
   Recommendation,
   WeatherSummary,
   Zone,
+  SignalDerivedSeverity,
 } from '../../types'
 import { modeCopy } from '../../lib/mode/mode'
 
-export type DashboardAlertSeverity = 'critical' | 'warning' | 'info'
+export type DashboardAlertSeverity = SignalDerivedSeverity
 
 export interface DashboardViewModel {
   /** Up to 3 short alerts derived from ingested sensor/camera/human signals. */
-  alerts: Array<{ id: string; message: string; severity: DashboardAlertSeverity }>
+  alerts: Array<{
+    id: string
+    message: string
+    severity: DashboardAlertSeverity
+    urgencyScore: number
+  }>
   gardenStatus: {
     tone: GardenHealth
     label: string
@@ -127,63 +133,67 @@ function estimatedTimeForRecommendation(r: Recommendation): string {
 }
 
 function buildDashboardAlerts(
-  garden: Garden,
-  insightRows: Array<{ id: string; title: string }>,
-): Array<{ id: string; message: string; severity: DashboardAlertSeverity }> {
+  insightRows: Array<{
+    id: string
+    title: string
+    urgencyScore?: number
+    severity?: SignalDerivedSeverity
+    capturedAtISO: string
+  }>,
+): Array<{
+  id: string
+  message: string
+  severity: DashboardAlertSeverity
+  urgencyScore: number
+}> {
   const severityRank: Record<DashboardAlertSeverity, number> = {
     critical: 0,
-    warning: 1,
-    info: 2,
+    urgent: 1,
+    watch: 2,
+    info: 3,
   }
 
   type Cand = {
     id: string
     message: string
     severity: DashboardAlertSeverity
-    sortKey: number
+    urgencyScore: number
+    capturedAtMs: number
   }
 
-  const insightCands: Cand[] = insightRows.map((i, idx) => ({
+  const insightCands: Cand[] = insightRows.map((i) => ({
     id: `alert-${i.id}`,
     message: i.title,
-    severity:
-      i.title.toLowerCase().includes('soil moisture low') ||
-      i.title.toLowerCase().includes('frost risk')
-        ? 'critical' as const
-        : i.id.startsWith('obs_') || i.id.startsWith('ext_')
-          ? 'warning' as const
-          : 'info' as const,
-    sortKey: 1000 + idx,
+    severity: i.severity ?? 'info',
+    urgencyScore: i.urgencyScore ?? 20,
+    capturedAtMs: new Date(i.capturedAtISO).getTime(),
   }))
-  const tomatoes = garden.zones.find((z) => z.id === 'zone_tomatoes')
-  const tomatoFollowUpCands: Cand[] =
-    tomatoes?.moistureStatus === 'good' &&
-    tomatoes.headline.startsWith('Tomatoes watered')
-      ? [
-          {
-            id: 'alert-tomatoes-follow-up',
-            message: 'Tomatoes watered — check again tomorrow',
-            severity: 'info' as const,
-            sortKey: 900,
-          },
-        ]
-      : []
 
-  const merged = [...tomatoFollowUpCands, ...insightCands].sort(
+  const merged = [...insightCands].sort(
     (a, b) =>
+      b.urgencyScore - a.urgencyScore ||
       severityRank[a.severity] - severityRank[b.severity] ||
-      a.sortKey - b.sortKey ||
+      b.capturedAtMs - a.capturedAtMs ||
       a.message.localeCompare(b.message),
   )
 
-  const out: Array<{ id: string; message: string; severity: DashboardAlertSeverity }> =
-    []
+  const out: Array<{
+    id: string
+    message: string
+    severity: DashboardAlertSeverity
+    urgencyScore: number
+  }> = []
   const seenMsg = new Set<string>()
   for (const c of merged) {
     if (out.length >= 3) break
     if (seenMsg.has(c.message)) continue
     seenMsg.add(c.message)
-    out.push({ id: c.id, message: c.message, severity: c.severity })
+    out.push({
+      id: c.id,
+      message: c.message,
+      severity: c.severity,
+      urgencyScore: c.urgencyScore,
+    })
   }
   return out
 }
@@ -201,8 +211,20 @@ function sortRecommendations(recs: Recommendation[]) {
   }
   return [...recs].sort(
     (a, b) =>
+      (b.urgencyScore ?? 0) - (a.urgencyScore ?? 0) ||
+      new Date(b.capturedAtISO ?? 0).getTime() -
+        new Date(a.capturedAtISO ?? 0).getTime() ||
       priorityRank[a.priority] - priorityRank[b.priority] ||
       dueRank[a.due] - dueRank[b.due],
+  )
+}
+
+function sortTasksByUrgency(tasks: Garden['tasks']) {
+  return [...tasks].sort(
+    (a, b) =>
+      (b.urgencyScore ?? 0) - (a.urgencyScore ?? 0) ||
+      new Date(b.capturedAtISO ?? 0).getTime() -
+        new Date(a.capturedAtISO ?? 0).getTime(),
   )
 }
 
@@ -345,9 +367,19 @@ export function getDashboardViewModel(
     garden.tasks.filter((t) => t.completed).map((t) => t.id),
   )
 
-  const insights = garden.cameraInsights.slice(0, 3).map((i) => ({
+  const insights = [...garden.cameraInsights]
+    .sort(
+      (a, b) =>
+        (b.urgencyScore ?? 0) - (a.urgencyScore ?? 0) ||
+        new Date(b.capturedAtISO).getTime() - new Date(a.capturedAtISO).getTime(),
+    )
+    .slice(0, 3)
+    .map((i) => ({
     id: i.id,
     kind: i.kind,
+    urgencyScore: i.urgencyScore,
+    severity: i.severity,
+    capturedAtISO: i.capturedAtISO,
     title: modeCopy({
       mode,
       kathy:
@@ -370,8 +402,13 @@ export function getDashboardViewModel(
   }))
 
   const alerts = buildDashboardAlerts(
-    garden,
-    insights.map((i) => ({ id: i.id, title: i.title })),
+    insights.map((i) => ({
+      id: i.id,
+      title: i.title,
+      urgencyScore: i.urgencyScore,
+      severity: i.severity,
+      capturedAtISO: i.capturedAtISO,
+    })),
   )
 
   return {
@@ -432,7 +469,7 @@ export function getDashboardViewModel(
               : r.nextStep,
         }),
         expanders:
-          mode === 'production'
+          mode === 'production' && r.kind === 'watering'
             ? [
                 {
                   title: 'Why water in the evening?',
@@ -450,8 +487,9 @@ export function getDashboardViewModel(
             : undefined,
       })),
     insights,
-    tasks: garden.tasks
-      .filter((t) => t.id !== 'task_water_tomatoes' || tomatoesDry)
+    tasks: sortTasksByUrgency(
+      garden.tasks.filter((t) => t.id !== 'task_water_tomatoes' || tomatoesDry),
+    )
       .slice(0, 3)
       .map((t) => ({
         id: t.id,

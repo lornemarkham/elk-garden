@@ -4,6 +4,7 @@ export type {
   Recommendation,
   RecommendationKind,
   RecommendationPriority,
+  SignalDerivedSeverity,
 } from './recommendation'
 export type { Task } from './task'
 export type { CameraInsight, CameraInsightKind } from './cameraInsight'

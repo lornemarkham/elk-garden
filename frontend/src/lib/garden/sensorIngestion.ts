@@ -1,4 +1,5 @@
 import type { Garden } from '../../types'
+import type { RecommendationPriority, SignalDerivedSeverity } from '../../types/recommendation'
 import {
   TOMATOES_ZONE_ID,
   type TomatoMoistureState,
@@ -12,7 +13,7 @@ export type GardenSignalKind =
   | 'frost-risk'
   | 'healthy'
 
-export type GardenSignalSeverity = 'info' | 'warning' | 'critical'
+export type GardenSignalSeverity = SignalDerivedSeverity
 
 export type GardenSignalMetadata = {
   rowId?: string
@@ -22,6 +23,8 @@ export type GardenSignalMetadata = {
   detectedAtISO?: string
   reviewWindow?: string
   suggestedVerificationAction?: string
+  urgencyScore?: number
+  severity?: SignalDerivedSeverity
   [key: string]: string | number | boolean | undefined
 }
 
@@ -38,6 +41,8 @@ export type GardenSignalEvent = {
 export type GardenSignalIngestionResult = {
   garden: Garden
   added: boolean
+  urgencyScore?: number
+  severity?: SignalDerivedSeverity
   tomatoMoistureState?: TomatoMoistureState
 }
 
@@ -47,8 +52,9 @@ type SignalConfig = {
   task: string
   detail: string
   recKind: Garden['recommendations'][number]['kind']
-  priority: Garden['recommendations'][number]['priority']
   insightKind: Garden['cameraInsights'][number]['kind']
+  urgencyScore: number
+  severity: SignalDerivedSeverity
 }
 
 function zoneLabel(garden: Garden, event: GardenSignalEvent, includeRow = true) {
@@ -75,6 +81,39 @@ function readingValueText(event: GardenSignalEvent) {
   return typeof unit === 'string' ? ` (${event.value} ${unit})` : ` (${event.value})`
 }
 
+function severityFromUrgency(urgencyScore: number): SignalDerivedSeverity {
+  if (urgencyScore >= 90) return 'critical'
+  if (urgencyScore >= 70) return 'urgent'
+  if (urgencyScore >= 40) return 'watch'
+  return 'info'
+}
+
+function priorityFromUrgency(urgencyScore: number): RecommendationPriority {
+  if (urgencyScore >= 70) return 'high'
+  if (urgencyScore >= 40) return 'medium'
+  return 'low'
+}
+
+function urgencyForSignal(event: GardenSignalEvent): number {
+  if (typeof event.metadata?.urgencyScore === 'number') {
+    return Math.max(1, Math.min(100, Math.round(event.metadata.urgencyScore)))
+  }
+  switch (event.kind) {
+    case 'soil-moisture-low':
+      return 92
+    case 'heat-stress':
+      return 72
+    case 'pest-activity':
+      return 62
+    case 'animal-activity':
+      return 55
+    case 'frost-risk':
+      return 95
+    case 'healthy':
+      return 15
+  }
+}
+
 function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | null {
   const location = zoneLabel(garden, event)
   const zoneOnly = zoneLabel(garden, event, false)
@@ -90,6 +129,8 @@ function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | 
   const heatTask = rowLabel
     ? `Inspect ${rowLabel} for heat stress`
     : `Check ${location} for heat stress`
+  const urgencyScore = urgencyForSignal(event)
+  const severity = event.metadata?.severity ?? severityFromUrgency(urgencyScore)
 
   switch (event.kind) {
     case 'soil-moisture-low':
@@ -105,8 +146,9 @@ function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | 
           'Verify by checking the top inch of soil.',
         )}${confidenceLabel(event)}`,
         recKind: 'watering',
-        priority: 'high',
         insightKind: 'plantStress',
+        urgencyScore,
+        severity,
       }
     case 'pest-activity':
       return {
@@ -118,8 +160,9 @@ function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | 
           'Look under leaves and around tender growth.',
         )}${confidenceLabel(event)}`,
         recKind: 'pest',
-        priority: 'medium',
         insightKind: 'plantStress',
+        urgencyScore,
+        severity,
       }
     case 'animal-activity':
       return {
@@ -131,8 +174,9 @@ function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | 
           'Review the clip and look for tracks, nibbled leaves, or disturbed soil.',
         )}${confidenceLabel(event)}`,
         recKind: 'check',
-        priority: 'medium',
         insightKind: 'animalActivity',
+        urgencyScore,
+        severity,
       }
     case 'heat-stress':
       return {
@@ -144,8 +188,9 @@ function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | 
           'Check leaf curl, wilting, and afternoon sun exposure.',
         )}${confidenceLabel(event)}`,
         recKind: 'check',
-        priority: 'medium',
         insightKind: 'plantStress',
+        urgencyScore,
+        severity,
       }
     case 'frost-risk':
       return {
@@ -154,8 +199,9 @@ function signalConfig(garden: Garden, event: GardenSignalEvent): SignalConfig | 
         task: 'Cover sensitive plants tonight',
         detail: 'Future weather feeds would trigger this automatically.',
         recKind: 'check',
-        priority: 'high',
         insightKind: 'plantStress',
+        urgencyScore,
+        severity,
       }
     case 'healthy':
       return null
@@ -222,6 +268,8 @@ export function ingestGardenSignal(
             title: config.title,
             detail: config.detail,
             capturedAtISO: event.capturedAtISO,
+            urgencyScore: config.urgencyScore,
+            severity: config.severity,
             confidence:
               event.metadata?.confidence ??
               (event.severity === 'critical'
@@ -240,11 +288,14 @@ export function ingestGardenSignal(
             gardenId: garden.id,
             zoneId: event.zoneId,
             kind: config.recKind,
-            priority: config.priority,
+            priority: priorityFromUrgency(config.urgencyScore),
             title: config.task,
             whyThisMatters: config.detail,
             nextStep: config.task,
             due: 'today',
+            urgencyScore: config.urgencyScore,
+            severity: config.severity,
+            capturedAtISO: event.capturedAtISO,
           },
           ...garden.recommendations,
         ],
@@ -258,6 +309,9 @@ export function ingestGardenSignal(
             title: config.task,
             supportiveNote: config.detail,
             completed: false,
+            urgencyScore: config.urgencyScore,
+            severity: config.severity,
+            capturedAtISO: event.capturedAtISO,
           },
           ...garden.tasks,
         ],
@@ -266,6 +320,8 @@ export function ingestGardenSignal(
   return {
     garden: nextGarden,
     added,
+    urgencyScore: config.urgencyScore,
+    severity: config.severity,
     tomatoMoistureState:
       event.kind === 'soil-moisture-low' && event.zoneId === TOMATOES_ZONE_ID
         ? {

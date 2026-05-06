@@ -13,10 +13,14 @@ type FakeSensorButton = {
 
 type RecentFakeEvent = {
   id: string
+  eventKey: string
   label: string
   zoneLabel: string
   capturedAtISO: string
   added: boolean
+  repeatedSignal: boolean
+  urgencyScore?: number
+  severity?: GardenSignalEvent['severity']
 }
 
 const FAKE_EVENTS: FakeSensorButton[] = [
@@ -25,7 +29,7 @@ const FAKE_EVENTS: FakeSensorButton[] = [
     zoneId: 'zone_tomatoes',
     kind: 'soil-moisture-low',
     value: 21,
-    severity: 'warning',
+    severity: 'critical',
     metadata: {
       sensorLabel: 'Zone 1 tomato bed moisture probe',
       confidence: 'high',
@@ -38,7 +42,7 @@ const FAKE_EVENTS: FakeSensorButton[] = [
     label: 'Zone 2: Bug activity suspected',
     zoneId: 'zone_greens',
     kind: 'pest-activity',
-    severity: 'warning',
+    severity: 'watch',
     metadata: {
       rowId: 'zone_greens_row_4',
       rowLabel: 'Row 4',
@@ -53,7 +57,7 @@ const FAKE_EVENTS: FakeSensorButton[] = [
     label: 'Zone 2: Deer activity detected',
     zoneId: 'zone_greens',
     kind: 'animal-activity',
-    severity: 'warning',
+    severity: 'watch',
     metadata: {
       sensorLabel: 'North fence camera',
       confidence: 'medium',
@@ -68,7 +72,7 @@ const FAKE_EVENTS: FakeSensorButton[] = [
     zoneId: 'zone_roots',
     kind: 'heat-stress',
     value: 91,
-    severity: 'warning',
+    severity: 'urgent',
     metadata: {
       rowId: 'zone_roots_west_row',
       rowLabel: 'west row',
@@ -131,18 +135,29 @@ export function FakeSensorPanel() {
     // Fake panel: temporary hardware simulator. UI should react to garden state, not panel state.
     const event = createFakeSensorEvent(config)
     const result = ingestSignal(event)
-    setRecentEvents((events) =>
-      [
+    const eventKey = `${config.zoneId}-${config.kind}`
+    setRecentEvents((events) => {
+      const clickedAtMs = new Date(event.capturedAtISO).getTime()
+      const repeatedSignal = events.some(
+        (item) =>
+          item.eventKey === eventKey &&
+          clickedAtMs - new Date(item.capturedAtISO).getTime() <= 30_000,
+      )
+      return [
         {
           id: `${event.capturedAtISO}-${config.zoneId}-${config.kind}`,
+          eventKey,
           label: config.label.replace(/^Zone \d: /, ''),
           zoneLabel: ZONE_LABELS[config.zoneId] ?? config.zoneId,
           capturedAtISO: event.capturedAtISO,
           added: result?.added ?? false,
+          repeatedSignal,
+          urgencyScore: result?.urgencyScore,
+          severity: result?.severity,
         },
         ...events,
-      ].slice(0, 5),
-    )
+      ].slice(0, 5)
+    })
   }
 
   const lastEvent = recentEvents[0]
@@ -170,6 +185,18 @@ export function FakeSensorPanel() {
               ? 'New task/recommendation added'
               : 'Already active, no duplicate added'}
           </p>
+          {lastEvent.urgencyScore && lastEvent.severity ? (
+            <p className="mt-1 text-[0.68rem] font-semibold text-stone-700">
+              Urgency: {lastEvent.urgencyScore}/100 · Severity:{' '}
+              {lastEvent.severity}
+            </p>
+          ) : null}
+          {lastEvent.repeatedSignal ? (
+            <p className="mt-1 text-[0.68rem] font-semibold text-stone-700">
+              Repeated signal detected — future version should verify sensor
+              health.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -200,6 +227,12 @@ export function FakeSensorPanel() {
                 <span className="min-w-0">
                   <span className="font-bold text-stone-800">{event.zoneLabel}</span>
                   <span className="text-stone-500"> · {event.label}</span>
+                  {event.urgencyScore && event.severity ? (
+                    <span className="block text-stone-500">
+                      Urgency: {event.urgencyScore}/100 · Severity:{' '}
+                      {event.severity}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="shrink-0 font-semibold text-stone-500">
                   {formatEventTime(event.capturedAtISO)}

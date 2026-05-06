@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { useEffect, useState, type ReactNode } from 'react'
 import { FakeSensorPanel } from './dev/FakeSensorPanel'
-import { useGarden } from '../lib/useGarden'
 
 /** Readable line length on large screens; comfortable on small laptops and phones. */
 const CONTENT_MAX = 'max-w-[720px]'
@@ -87,7 +86,6 @@ function BottomNav() {
 }
 
 export function AppShell() {
-  const { gardenMode } = useGarden()
   const location = useLocation()
   const [demoModeEnabled, setDemoModeEnabled] = useState(() => {
     const params = new URLSearchParams(window.location.search)
@@ -96,8 +94,6 @@ export function AppShell() {
       localStorage.getItem(DEMO_MODE_STORAGE_KEY) === 'true'
     )
   })
-  const showIdeaVault = gardenMode === 'production'
-
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     if (params.get('demo') === '1') {
@@ -130,21 +126,19 @@ export function AppShell() {
         )}
       >
         <div className="mb-4 flex flex-wrap justify-end gap-2">
-          {showIdeaVault ? (
-              <NavLink
-                to="/ideas"
-                className={({ isActive }) =>
-                  clsx(
-                    'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
-                    isActive
-                      ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
-                      : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
-                  )
-                }
-              >
-                Idea Vault
-              </NavLink>
-          ) : null}
+          <NavLink
+            to="/ideas"
+            className={({ isActive }) =>
+              clsx(
+                'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
+                isActive
+                  ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
+                  : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
+              )
+            }
+          >
+            Idea Vault
+          </NavLink>
           {demoModeEnabled ? (
             <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-950 ring-1 ring-emerald-200">
               Sensor Demo On

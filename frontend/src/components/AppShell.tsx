@@ -1,5 +1,5 @@
 import { LayoutGrid, Leaf, ListChecks, Sprout } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { useEffect, useState, type ReactNode } from 'react'
 import { FakeSensorPanel } from './dev/FakeSensorPanel'
@@ -87,6 +87,7 @@ function BottomNav() {
 
 export function AppShell() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [demoModeEnabled, setDemoModeEnabled] = useState(() => {
     const params = new URLSearchParams(window.location.search)
     return (
@@ -102,10 +103,20 @@ export function AppShell() {
     }
   }, [location.search])
 
-  const enableDemoMode = () => {
+  const toggleDemoMode = () => {
+    if (demoModeEnabled) {
+      localStorage.removeItem(DEMO_MODE_STORAGE_KEY)
+      setDemoModeEnabled(false)
+      if (new URLSearchParams(location.search).get('demo') === '1') {
+        navigate(location.pathname, { replace: true })
+      }
+      return
+    }
     localStorage.setItem(DEMO_MODE_STORAGE_KEY, 'true')
     setDemoModeEnabled(true)
   }
+
+  const inIdeaVault = location.pathname === '/ideas'
 
   return (
     <div className="min-h-dvh bg-stone-50">
@@ -127,31 +138,31 @@ export function AppShell() {
       >
         <div className="mb-4 flex flex-wrap justify-end gap-2">
           <NavLink
-            to="/ideas"
+            to={inIdeaVault ? '/dashboard' : '/ideas'}
             className={({ isActive }) =>
               clsx(
                 'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
-                isActive
+                inIdeaVault || isActive
                   ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
                   : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
               )
             }
           >
-            Idea Vault
+            {inIdeaVault ? 'Close Idea Vault' : 'Idea Vault'}
           </NavLink>
-          {demoModeEnabled ? (
-            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-950 ring-1 ring-emerald-200">
-              Sensor Demo On
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={enableDemoMode}
-              className="rounded-full bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50"
-            >
-              Sensor Demo
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={toggleDemoMode}
+            className={clsx(
+              'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
+              demoModeEnabled
+                ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
+                : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
+            )}
+            aria-pressed={demoModeEnabled}
+          >
+            Sensor Demo: {demoModeEnabled ? 'On' : 'Off'}
+          </button>
         </div>
         <Outlet />
       </main>

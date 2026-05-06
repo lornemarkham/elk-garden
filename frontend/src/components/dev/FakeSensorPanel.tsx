@@ -125,11 +125,11 @@ function formatEventTime(capturedAtISO: string) {
   })
 }
 
-export function FakeSensorPanel() {
+export function FakeSensorPanel({ enabled }: { enabled: boolean }) {
   const { garden, ingestSignal } = useGardenStore()
   const [recentEvents, setRecentEvents] = useState<RecentFakeEvent[]>([])
 
-  if (!garden || import.meta.env.PROD) return null
+  if (!garden || !enabled) return null
 
   const sendFakeEvent = (config: FakeSensorButton) => {
     // Fake panel: temporary hardware simulator. UI should react to garden state, not panel state.
@@ -167,8 +167,8 @@ export function FakeSensorPanel() {
       <div>
         <p className="font-bold text-stone-900">Fake Sensor Panel</p>
         <p className="mt-0.5 text-[0.68rem] leading-snug text-stone-500">
-          Temporary local hardware simulator for future Arduino, camera, and
-          weather input.
+          Demo mode: simulate future sensor, camera, weather, and human garden
+          signals.
         </p>
       </div>
 

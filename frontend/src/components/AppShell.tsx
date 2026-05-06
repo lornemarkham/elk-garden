@@ -1,7 +1,7 @@
 import { LayoutGrid, Leaf, ListChecks, Sprout } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { FakeSensorPanel } from './dev/FakeSensorPanel'
 import { useGarden } from '../lib/useGarden'
 
@@ -10,6 +10,7 @@ const CONTENT_MAX = 'max-w-[720px]'
 
 /** Hide Zones in bottom nav until the feature is ready (routes still work if linked). */
 const SHOW_ZONES_TAB = false
+const DEMO_MODE_STORAGE_KEY = 'elkGardenDemoMode'
 
 function NavItem({
   to,
@@ -87,7 +88,28 @@ function BottomNav() {
 
 export function AppShell() {
   const { gardenMode } = useGarden()
+  const location = useLocation()
+  const [demoModeEnabled, setDemoModeEnabled] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return (
+      params.get('demo') === '1' ||
+      localStorage.getItem(DEMO_MODE_STORAGE_KEY) === 'true'
+    )
+  })
   const showIdeaVault = gardenMode === 'production'
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('demo') === '1') {
+      localStorage.setItem(DEMO_MODE_STORAGE_KEY, 'true')
+      setDemoModeEnabled(true)
+    }
+  }, [location.search])
+
+  const enableDemoMode = () => {
+    localStorage.setItem(DEMO_MODE_STORAGE_KEY, 'true')
+    setDemoModeEnabled(true)
+  }
 
   return (
     <div className="min-h-dvh bg-stone-50">
@@ -107,26 +129,39 @@ export function AppShell() {
           CONTENT_MAX,
         )}
       >
-        {showIdeaVault ? (
-          <div className="mb-4 flex justify-end">
-            <NavLink
-              to="/ideas"
-              className={({ isActive }) =>
-                clsx(
-                  'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
-                    : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
-                )
-              }
+        <div className="mb-4 flex flex-wrap justify-end gap-2">
+          {showIdeaVault ? (
+              <NavLink
+                to="/ideas"
+                className={({ isActive }) =>
+                  clsx(
+                    'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
+                    isActive
+                      ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
+                      : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
+                  )
+                }
+              >
+                Idea Vault
+              </NavLink>
+          ) : null}
+          {demoModeEnabled ? (
+            <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-950 ring-1 ring-emerald-200">
+              Sensor Demo On
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={enableDemoMode}
+              className="rounded-full bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50"
             >
-              Idea Vault
-            </NavLink>
-          </div>
-        ) : null}
+              Sensor Demo
+            </button>
+          )}
+        </div>
         <Outlet />
       </main>
-      <FakeSensorPanel />
+      <FakeSensorPanel enabled={demoModeEnabled} />
       <BottomNav />
     </div>
   )

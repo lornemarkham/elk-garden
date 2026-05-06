@@ -5,13 +5,15 @@
   "type": "module",
   "workspaces": [
     "frontend",
-    "backend"
+    "backend",
+    "performance-monitor-extension"
   ],
   "scripts": {
     "dev": "concurrently -k -n web,api -c blue,green \"npm run dev -w elk-garden-frontend\" \"npm run dev -w elk-garden-backend\"",
     "dev:frontend": "npm run dev -w elk-garden-frontend",
     "dev:backend": "npm run dev -w elk-garden-backend",
     "build": "npm run build -w elk-garden-frontend",
+    "build:extension": "npm run build -w elk-performance-monitor-extension",
     "build:backend": "npm run typecheck -w elk-garden-backend",
     "test:elk-plan": "tsx backend/scripts/testGardenPlanLocal.ts",
     "lint": "npm run lint -w elk-garden-frontend",

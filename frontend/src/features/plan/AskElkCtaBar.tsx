@@ -31,20 +31,16 @@ export function AskElkCtaBar({
           Ask ELK
         </h2>
         <p className="mt-2 text-base leading-relaxed text-stone-600">
-          Ask ELK will build or update your saved plan using your current draft inputs above
-          (crops, goals, location, threats, areas). Plan tasks in the Tasks tab are refreshed
-          from the new plan.
+          Everything above is your garden draft. Ask ELK turns it into a plan and tasks you can
+          use on the Tasks tab — stored on this device only. Start simple and iterate: update the
+          draft and ask again whenever you want a fresh plan.
         </p>
         {hasSavedPlan ? (
           <p className="mt-3 text-sm leading-relaxed text-stone-500">
-            You already have a saved plan — running again replaces it with a new one from your
-            current draft.
+            You already have a generated plan below. Running Ask ELK again replaces it with a
+            new one from your current draft.
           </p>
-        ) : (
-          <p className="mt-3 text-sm leading-relaxed text-stone-500">
-            First time: your draft is sent to ELK; the result is saved on this device only.
-          </p>
-        )}
+        ) : null}
         {!canAsk ? (
           <p
             className="mx-auto mt-4 max-w-xl rounded-xl bg-amber-50/90 px-4 py-3 text-sm leading-relaxed text-amber-950 ring-1 ring-amber-200/90"
@@ -81,6 +77,11 @@ export function AskElkCtaBar({
           )}
           {planLoading ? 'Planning…' : 'Ask ELK'}
         </button>
+        {!hasSavedPlan ? (
+          <p className="mt-3 text-center text-sm leading-relaxed text-stone-500">
+            After Ask ELK finishes, your generated plan appears in the section below.
+          </p>
+        ) : null}
       </div>
     </section>
   )

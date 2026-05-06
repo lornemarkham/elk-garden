@@ -1,0 +1,129 @@
+ELK Garden — Architecture Notes (Block 1)
+
+Decisions locked in
+	•	Use Prisma + SQLite for V1 foundation
+	•	Treat the current garden structure as the editable draft
+	•	Store generated output separately in GeneratedPlan
+	•	Do not create a separate Crop table yet; keep cropName as a string on Row
+
+⸻
+
+Future auth compatibility
+
+Yes — this structure supports authentication later.
+
+Why
+
+Even if V1 starts with a default or fake user, the model already assumes ownership:
+	•	User owns many Garden records
+	•	Garden owns Area, Row, Task, and GeneratedPlan data indirectly
+
+That means when real auth is added later, we do not need to redesign the whole data model.
+We mainly need to:
+	•	replace the fake/default user flow with a real authenticated user
+	•	attach the signed-in user ID to created/read/updated records
+	•	protect API routes so users only access their own gardens
+
+Auth-ready philosophy
+
+Build the data model as if auth already exists, even if implementation comes later.
+
+⸻
+
+ID strategy
+
+Use UUID-style string IDs from the start.
+
+Why not simple integer IDs?
+
+Integers are fine technically, but UUID-style IDs are better for future product growth:
+	•	easier to merge local/dev/test data safely
+	•	better for multi-user systems
+	•	safer to expose in URLs and APIs
+	•	avoids simple record guessing like /gardens/1, /gardens/2
+	•	closer to what many real SaaS apps use
+
+Practical choice in Prisma
+
+Use string IDs with a generated UUID/cuid.
+For example:
+	•	String @id @default(cuid())
+
+This gives us stable unique IDs without needing Postgres-specific functions.
+
+⸻
+
+Core V1 entities
+	•	User
+	•	Garden
+	•	Area
+	•	Row
+	•	GeneratedPlan
+	•	Task
+	•	AreaLog
+	•	RowLog
+
+⸻
+
+Ownership model
+	•	User has many Gardens
+	•	Garden has many Areas
+	•	Area has many Rows
+	•	Garden has zero or one current GeneratedPlan
+	•	Garden has many Tasks
+	•	Area has many AreaLogs
+	•	Row has many RowLogs
+
+⸻
+
+Draft vs generated output
+
+Editable user-owned draft
+
+The draft is the current garden structure and settings:
+	•	garden basics
+	•	place/location
+	•	goal/mode
+	•	areas
+	•	rows
+	•	notes/logs
+	•	planted status
+
+Generated output
+
+ELK produces:
+	•	plan summary
+	•	timing guidance
+	•	generated tasks
+
+These are derived from the draft and should be stored separately.
+
+⸻
+
+V1 simplifications
+	•	one owner per garden
+	•	one current generated plan per garden
+	•	no separate Crop table yet
+	•	no billing
+	•	no collaboration
+	•	no sensor models yet
+	•	no plan history/versioning yet
+
+⸻
+
+Suggested next file after this
+	•	schema-notes.md or directly Prisma schema draft
+
+⸻
+
+Next immediate step
+
+Turn this architecture into a first Prisma schema for:
+	•	User
+	•	Garden
+	•	Area
+	•	Row
+	•	GeneratedPlan
+	•	Task
+	•	AreaLog
+	•	RowLog

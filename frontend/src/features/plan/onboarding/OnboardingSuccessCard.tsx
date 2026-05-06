@@ -7,7 +7,7 @@ type Props = {
 
 export function OnboardingSuccessCard({ onReview, onGoToTasks }: Props) {
   return (
-    <div className="px-4 pb-10 pt-8">
+    <div className="pb-10 pt-4">
       <Card className="p-8 ring-stone-200">
         <p className="text-center text-xl font-semibold text-stone-950">
           Your garden is ready 🌱

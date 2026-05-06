@@ -38,7 +38,7 @@ export function ZoneDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-6">
+      <div className="py-6">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <p className="text-base font-semibold text-stone-900">
             Loading zone…
@@ -53,7 +53,7 @@ export function ZoneDetailPage() {
 
   if (error || !garden || !zoneId) {
     return (
-      <div className="px-4 py-6">
+      <div className="py-6">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <p className="text-base font-semibold text-stone-900">
             We couldn’t load this zone
@@ -69,7 +69,7 @@ export function ZoneDetailPage() {
   const zone = garden.zones.find((z) => z.id === zoneId)
   if (!zone) {
     return (
-      <div className="px-4 py-6">
+      <div className="py-6">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <p className="text-base font-semibold text-stone-900">
             Zone not found
@@ -90,7 +90,7 @@ export function ZoneDetailPage() {
 
   if (!weather) {
     return (
-      <div className="px-4 py-6">
+      <div className="py-6">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <p className="text-base font-semibold text-stone-900">
             Getting today’s guidance…
@@ -129,15 +129,32 @@ export function ZoneDetailPage() {
   })
 
   return (
-    <div className="pt-4">
+    <div className="pt-1">
       <div className="px-4 pb-6">
-        <NavLink
-          to="/zones"
-          className="inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-base font-semibold text-stone-900 shadow-sm ring-1 ring-stone-200"
-        >
-          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-          Zones
-        </NavLink>
+        <div className="space-y-2">
+          <NavLink
+            to="/dashboard"
+            className="inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-base font-semibold text-stone-900 shadow-sm ring-1 ring-stone-200 transition hover:bg-stone-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50"
+          >
+            <ChevronLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+            Back to Dashboard
+          </NavLink>
+          <nav
+            aria-label="Breadcrumb"
+            className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-medium text-stone-600"
+          >
+            <NavLink
+              to="/dashboard"
+              className="text-stone-600 underline decoration-stone-300/80 underline-offset-4 transition hover:text-stone-900 hover:decoration-stone-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50 rounded-sm"
+            >
+              Dashboard
+            </NavLink>
+            <span className="text-stone-400" aria-hidden="true">
+              /
+            </span>
+            <span className="font-semibold text-stone-900">{zone.name}</span>
+          </nav>
+        </div>
 
         <Card className="mt-4 bg-stone-50/40 p-6 ring-stone-200">
           <div className="flex items-start justify-between gap-3">

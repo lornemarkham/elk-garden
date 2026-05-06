@@ -29,9 +29,12 @@ import { computeFallbackAssumptionsLikely } from '../planMinimumInput'
 import { dedupeCropListPreserveOrder } from '../planAreaCrops'
 import {
   loadPlanTasks,
+  ensureTomatoesDemoTask,
+  hasTomatoesInPlanInput,
   mergePlanTaskCompletions,
   savePlanTasks,
 } from '../planTasksStorage'
+import { ElkGardenPageBranding } from '../../../components/ElkGardenPageBranding'
 import { Card } from '../../../components/Card'
 import { buildInitialAreasFromCrops } from './buildInitialAreasFromCrops'
 
@@ -255,7 +258,12 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
         threats,
         userCrops: cropList,
       })
-      savePlanTasks(mergePlanTaskCompletions(taskList, loadPlanTasks()))
+      savePlanTasks(
+        ensureTomatoesDemoTask(
+          mergePlanTaskCompletions(taskList, loadPlanTasks()),
+          hasTomatoesInPlanInput({ crops: cropList, areas }),
+        ),
+      )
 
       onBuildSuccess?.()
     } catch (e) {
@@ -267,7 +275,8 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
   }
 
   return (
-    <div className="px-4 pb-10 pt-6">
+    <div className="pb-10 pt-2">
+      <ElkGardenPageBranding />
       <header className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
           Step {step} of 4

@@ -12,14 +12,14 @@ export function SectionContainer({
   rightSlot?: ReactNode
 }) {
   return (
-    <section className="px-4 pb-10 pt-1">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <section className="pb-8 pt-0 sm:pb-10">
+      <div className="mb-5 flex items-start justify-between gap-3 sm:mb-6">
         <div>
           <h2 className="text-xl font-semibold tracking-tight text-stone-950">
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-1 text-base leading-relaxed text-stone-700">
+            <p className="mt-1.5 max-w-prose text-base leading-relaxed text-stone-600">
               {subtitle}
             </p>
           ) : null}

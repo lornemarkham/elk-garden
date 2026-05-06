@@ -14,7 +14,7 @@ import {
   type SunLevel,
   THREATS,
 } from './planConstants'
-import { PlanFlowGroup } from './PlanFlowGroup'
+import { PlanCollapsibleSection } from './PlanCollapsibleSection'
 import { dedupeCropListPreserveOrder } from './planAreaCrops'
 import {
   areaStatusBadgeClass,
@@ -59,6 +59,16 @@ type PlanInputsSectionProps = {
     rowId: string,
     patch: Partial<StoredGardenRow>,
   ) => void
+  draftSections: {
+    crops: boolean
+    areas: boolean
+    place: boolean
+    threats: boolean
+  }
+  onDraftSectionChange: (
+    key: 'crops' | 'areas' | 'place' | 'threats',
+    open: boolean,
+  ) => void
 }
 
 export function PlanInputsSection(props: PlanInputsSectionProps) {
@@ -93,12 +103,29 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
     onAddRow,
     onRemoveRow,
     onUpdateRow,
+    draftSections,
+    onDraftSectionChange,
   } = props
 
   const cropPool = useMemo(
     () => dedupeCropListPreserveOrder(chips),
     [chips],
   )
+
+  const totalRows = useMemo(
+    () => areas.reduce((sum, a) => sum + a.rows.length, 0),
+    [areas],
+  )
+
+  const threatPickCount = useMemo(
+    () => THREATS.filter((t) => threats[t.id]).length,
+    [threats],
+  )
+
+  const cropsSummary =
+    cropPool.length === 0
+      ? 'No crops on your list yet — add what you might grow.'
+      : `${cropPool.length} crop${cropPool.length === 1 ? '' : 's'} on your list`
 
   function rowCropOptions(rowCrop: string): string[] {
     const cur = rowCrop.trim()
@@ -126,24 +153,25 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
   }, [chipDuplicateShakeNonce])
 
   return (
-    <section aria-labelledby="plan-inputs-heading" className="space-y-10">
-      <div>
+    <section
+      aria-labelledby="plan-inputs-heading"
+      className="scroll-mt-4 space-y-6"
+    >
+      <div className="max-w-3xl">
         <h2
           id="plan-inputs-heading"
-          className="text-xl font-semibold tracking-tight text-stone-950"
+          className="text-lg font-semibold tracking-tight text-stone-950 sm:text-xl"
         >
-          Current draft
+          Your garden draft
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-stone-600">
-          Starts empty after a reset. Edit freely — nothing here is final until
-          you run Ask ELK. Your{' '}
-          <span className="font-medium text-stone-800">saved plan</span> (below,
-          after you generate) is what ELK stored last time; change the draft and
-          ask again to replace it.
+          This is what you edit before Ask ELK — layout, crops, beds, place, and
+          threats. Open a section when you need it; it all saves on this device.
         </p>
       </div>
 
-      <Card className="overflow-hidden ring-stone-200">
+      <div id="draft-layout-preview" className="scroll-mt-4">
+        <Card className="overflow-hidden ring-stone-200">
         <div className="aspect-[4/3] w-full bg-stone-100 lg:min-h-[280px]">
           {imagePreview ? (
             <img
@@ -200,11 +228,19 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
           ) : null}
         </div>
       </Card>
+      </div>
 
-      <PlanFlowGroup
+      <PlanCollapsibleSection
+        id="draft-crops"
         title="What you plan to grow"
-        hint="Add everything you plan to grow first, then place crops into garden areas and rows below."
+        summaryLine={cropsSummary}
+        open={draftSections.crops}
+        onOpenChange={(open) => onDraftSectionChange('crops', open)}
       >
+        <p className="mb-3 text-sm leading-relaxed text-stone-600">
+          Add everything you plan to grow first, then place crops into garden
+          areas and rows below.
+        </p>
         <Card className="p-4 ring-stone-200">
           <label className="block text-base font-semibold text-stone-950">
             Unassigned crops (not placed in a garden area yet)
@@ -270,15 +306,23 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
             </p>
           </div>
         </Card>
-      </PlanFlowGroup>
+      </PlanCollapsibleSection>
 
+      <PlanCollapsibleSection
+        id="draft-areas"
+        title="Garden areas"
+        summaryLine={
+          areas.length === 0
+            ? 'No areas yet — add a bed or box when you’re ready.'
+            : `${areas.length} ${areas.length === 1 ? 'area' : 'areas'} · ${totalRows} ${totalRows === 1 ? 'row' : 'rows'}`
+        }
+        open={draftSections.areas}
+        onOpenChange={(open) => onDraftSectionChange('areas', open)}
+      >
       <div className="rounded-2xl bg-white/50 p-4 ring-1 ring-stone-200/80 sm:p-6">
-        <h2 className="text-xl font-semibold tracking-tight text-stone-950">
-          Garden areas
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-stone-500">
-          Each garden area is full width; rows run left-to-right. Your crop list above is
-          reusable — the same crop can go in multiple rows.
+        <p className="text-sm leading-relaxed text-stone-500">
+          Each garden area is full width; rows run left-to-right. Your crop list
+          above is reusable — the same crop can go in multiple rows.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -633,9 +677,19 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
           </div>
         )}
       </div>
+      </PlanCollapsibleSection>
 
-      <div className="space-y-4">
-        <PlanFlowGroup title="Your place" hint="Optional — helps tailor ideas.">
+      <PlanCollapsibleSection
+        id="draft-your-place"
+        title="Your place"
+        summaryLine={`${locationText.trim() || 'Location not set yet'} · ${GOAL_LABELS[goal]}`}
+        open={draftSections.place}
+        onOpenChange={(open) => onDraftSectionChange('place', open)}
+      >
+        <p className="mb-3 text-sm leading-relaxed text-stone-600">
+          Optional — helps tailor ideas.
+        </p>
+        <div className="space-y-3">
           <Card className="p-4 ring-stone-200">
             <label className="block text-base font-semibold text-stone-950">
               Location
@@ -662,9 +716,20 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
               <option value="balanced">{GOAL_LABELS.balanced}</option>
             </select>
           </Card>
-        </PlanFlowGroup>
+        </div>
+      </PlanCollapsibleSection>
 
-        <PlanFlowGroup title="Threats to plan for">
+      <PlanCollapsibleSection
+        id="draft-threats"
+        title="Threats to plan for"
+        summaryLine={
+          threatPickCount === 0
+            ? 'No concerns checked yet — open to add deer, heat, and more.'
+            : `${threatPickCount} concern${threatPickCount === 1 ? '' : 's'} you’re planning for`
+        }
+        open={draftSections.threats}
+        onOpenChange={(open) => onDraftSectionChange('threats', open)}
+      >
           <Card className="p-4 ring-stone-200">
             <div className="space-y-3">
               {THREATS.map((t) => (
@@ -685,8 +750,7 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
               ))}
             </div>
           </Card>
-        </PlanFlowGroup>
-      </div>
+      </PlanCollapsibleSection>
     </section>
   )
 }

@@ -1,0 +1,183 @@
+:root {
+  --lark-bg: #f3f0e8;
+  --lark-ink: #1c1917;
+  --lark-muted: #57534e;
+  --lark-accent: #0d9488;
+  --lark-accent-deep: #0f766e;
+  --lark-card: #ffffff;
+  --lark-wash: rgba(13, 148, 136, 0.08);
+  --lark-radius: 1.25rem;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  color: var(--lark-ink);
+  background: var(--lark-bg);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -20%, rgba(13, 148, 136, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(120, 113, 108, 0.06), transparent);
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+.lark-page {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 6rem;
+}
+
+.lark-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lark-accent-deep);
+  background: var(--lark-wash);
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  margin-bottom: 1rem;
+}
+
+.lark-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75rem;
+}
+
+.lark-lead {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--lark-muted);
+  margin: 0 0 2rem;
+}
+
+.lark-panel {
+  background: var(--lark-card);
+  border-radius: var(--lark-radius);
+  padding: 1.5rem;
+  box-shadow:
+    0 1px 2px rgba(28, 25, 23, 0.04),
+    0 12px 32px rgba(28, 25, 23, 0.06);
+  border: 1px solid rgba(120, 113, 108, 0.12);
+  margin-bottom: 1.25rem;
+}
+
+.lark-panel h2 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lark-muted);
+  margin: 0 0 1rem;
+}
+
+.lark-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+@media (min-width: 480px) {
+  .lark-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.lark-btn {
+  flex: 1;
+  min-width: 8rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.85rem 1.1rem;
+  border-radius: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.lark-btn:active {
+  transform: scale(0.98);
+}
+
+.lark-btn--primary {
+  background: linear-gradient(165deg, var(--lark-accent), var(--lark-accent-deep));
+  color: white;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+}
+
+.lark-btn--primary:hover {
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4);
+}
+
+.lark-btn--secondary {
+  background: var(--lark-bg);
+  color: var(--lark-ink);
+  border: 1px solid rgba(120, 113, 108, 0.2);
+}
+
+.lark-btn--secondary:hover {
+  background: #ebe6dc;
+}
+
+.lark-btn--ghost {
+  background: transparent;
+  color: var(--lark-accent-deep);
+  border: 1px dashed rgba(13, 148, 136, 0.45);
+}
+
+.lark-status {
+  font-size: 0.875rem;
+  color: var(--lark-muted);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(120, 113, 108, 0.12);
+  min-height: 2.5rem;
+}
+
+.lark-status strong {
+  color: var(--lark-ink);
+}
+
+.lark-footnote {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--lark-muted);
+  margin: 2rem 0 0;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: var(--lark-radius);
+  border: 1px solid rgba(120, 113, 108, 0.1);
+}
+
+.lark-footnote code {
+  font-size: 0.75em;
+  background: var(--lark-wash);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.35rem;
+}

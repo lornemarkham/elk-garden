@@ -1,0 +1,28 @@
+{
+  "name": "@sycle/performance-monitor",
+  "version": "1.0.0",
+  "description": "Advanced performance monitoring tool for React/Next.js applications with SLO tracking, Web Vitals, request waterfall, backend tracing, and AI-powered optimization recommendations",
+  "main": "src/components/performance-overlay.tsx",
+  "types": "src/components/performance-overlay.tsx",
+  "scripts": {
+    "build": "echo 'Copy files to your project'"
+  },
+  "keywords": [
+    "performance",
+    "monitoring",
+    "react",
+    "nextjs",
+    "web-vitals",
+    "slo",
+    "observability",
+    "apm"
+  ],
+  "author": "Sycle",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

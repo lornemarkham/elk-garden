@@ -8,7 +8,7 @@ export function ZonesPage() {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-6">
+      <div className="py-6">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <p className="text-base font-semibold text-stone-900">Loading zones…</p>
           <p className="mt-2 text-sm leading-relaxed text-stone-600">
@@ -21,7 +21,7 @@ export function ZonesPage() {
 
   if (error || !garden) {
     return (
-      <div className="px-4 py-6">
+      <div className="py-6">
         <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
           <p className="text-base font-semibold text-stone-900">
             We couldn’t load zones
@@ -35,7 +35,7 @@ export function ZonesPage() {
   }
 
   return (
-    <div className="pt-4">
+    <div className="pt-1">
       <SectionContainer
         title="Zones"
         subtitle="Each zone is kept simple: what’s happening and what to do next."

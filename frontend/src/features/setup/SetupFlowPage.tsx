@@ -26,7 +26,7 @@ function StepHeader({
   subtitle?: string
 }) {
   return (
-    <div className="px-4 pb-4 pt-4">
+    <div className="pb-4 pt-4">
       <p className="text-base font-semibold text-stone-700">
         Step {stepIndex} of {stepCount}
       </p>
@@ -95,7 +95,7 @@ function FooterNav({
   nextLabel?: string
 }) {
   return (
-    <div className="px-4 pb-6">
+    <div className="pb-6">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -189,7 +189,7 @@ export function SetupFlowPage() {
   }
 
   return (
-    <div className="pt-2">
+    <div>
       {step === 'goal' ? (
         <>
           <StepHeader

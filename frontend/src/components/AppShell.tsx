@@ -1,48 +1,15 @@
 import { LayoutGrid, Leaf, ListChecks, Sprout } from 'lucide-react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
+import { FakeSensorPanel } from './dev/FakeSensorPanel'
 import { useGarden } from '../lib/useGarden'
-import { gardenModeLabel } from '../lib/mode/mode'
+
+/** Readable line length on large screens; comfortable on small laptops and phones. */
+const CONTENT_MAX = 'max-w-[720px]'
 
 /** Hide Zones in bottom nav until the feature is ready (routes still work if linked). */
 const SHOW_ZONES_TAB = false
-
-function TopHeader() {
-  const { gardenMode } = useGarden()
-  const location = useLocation()
-  const wide = location.pathname === '/canvas'
-  return (
-    <header className="sticky top-0 z-20 border-b border-stone-200 bg-stone-50/95 backdrop-blur">
-      <div
-        className={clsx(
-          'mx-auto flex items-center justify-between px-4 py-4',
-          wide ? 'max-w-6xl' : 'max-w-xl',
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="grid h-11 w-11 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-stone-200"
-            aria-hidden="true"
-          >
-            <Sprout className="h-6 w-6 text-emerald-700" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-base font-semibold tracking-tight text-stone-900">
-              ELK Garden
-            </p>
-            <p className="text-sm text-stone-600">
-              Grow more food with less guesswork
-            </p>
-            <p className="mt-1 text-sm font-semibold text-stone-700">
-              {gardenModeLabel(gardenMode)}
-            </p>
-          </div>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 function NavItem({
   to,
@@ -58,7 +25,7 @@ function NavItem({
       to={to}
       className={({ isActive }) =>
         clsx(
-          'flex w-full flex-col items-center justify-center gap-1 rounded-2xl px-3 py-4 text-sm font-semibold outline-none',
+          'flex w-full flex-col items-center justify-center gap-1 rounded-2xl px-3 py-3 text-sm font-semibold outline-none sm:py-3.5',
           'focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
           isActive
             ? 'bg-emerald-100/80 text-emerald-950 ring-1 ring-emerald-300 shadow-sm shadow-emerald-900/5 -translate-y-0.5'
@@ -75,12 +42,10 @@ function NavItem({
 }
 
 function BottomNav() {
-  const location = useLocation()
-  const wide = location.pathname === '/canvas'
   return (
     <nav
       className={clsx(
-        'sticky bottom-0 z-20 border-t border-stone-200 bg-stone-50/95 px-3 pt-3.5 backdrop-blur',
+        'sticky bottom-0 z-20 border-t border-stone-200 bg-stone-50/95 px-3 pt-2.5 backdrop-blur',
         'shadow-[0_-14px_36px_rgba(12,10,9,0.10)]',
         'pb-[max(env(safe-area-inset-bottom),0.75rem)]',
       )}
@@ -90,7 +55,7 @@ function BottomNav() {
         className={clsx(
           'mx-auto grid gap-2',
           SHOW_ZONES_TAB ? 'grid-cols-4' : 'grid-cols-3',
-          wide ? 'max-w-6xl' : 'max-w-xl',
+          CONTENT_MAX,
         )}
       >
         <NavItem
@@ -121,7 +86,8 @@ function BottomNav() {
 }
 
 export function AppShell() {
-  const location = useLocation()
+  const { gardenMode } = useGarden()
+  const showIdeaVault = gardenMode === 'production'
 
   return (
     <div className="min-h-dvh bg-stone-50">
@@ -134,19 +100,34 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <TopHeader />
       <main
         id="main"
         className={clsx(
-          'mx-auto w-full pb-6',
-          location.pathname === '/canvas' ? 'max-w-6xl px-2 sm:px-4' : 'max-w-xl',
+          'mx-auto w-full px-4 pb-6 pt-4 sm:px-5 sm:pt-5',
+          CONTENT_MAX,
         )}
-        key={location.pathname}
       >
+        {showIdeaVault ? (
+          <div className="mb-4 flex justify-end">
+            <NavLink
+              to="/ideas"
+              className={({ isActive }) =>
+                clsx(
+                  'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
+                    : 'bg-white text-stone-600 ring-stone-200 hover:bg-stone-50',
+                )
+              }
+            >
+              Idea Vault
+            </NavLink>
+          </div>
+        ) : null}
         <Outlet />
       </main>
+      <FakeSensorPanel />
       <BottomNav />
     </div>
   )
 }
-

@@ -30,9 +30,14 @@ import {
   THREATS,
   type GardenGoal,
 } from './planConstants'
+import { PrimaryPageIntro } from '../../components/PrimaryPageIntro'
+import { GardenPlanSummaryCard } from './GardenPlanSummaryCard'
+import { PlanPageGuidance } from './PlanPageGuidance'
 import { PlanInputsSection } from './PlanInputsSection'
 import {
   loadPlanTasks,
+  ensureTomatoesDemoTask,
+  hasTomatoesInPlanInput,
   mergePlanTaskCompletions,
   savePlanTasks,
 } from './planTasksStorage'
@@ -52,6 +57,15 @@ import {
 
 const MINIMUM_INPUT_HINT =
   'Add at least one crop or one garden area to generate a useful spring plan.'
+
+function scrollDocumentToElement(
+  el: HTMLElement | null,
+  behavior: ScrollBehavior = 'smooth',
+) {
+  if (!el) return
+  const y = el.getBoundingClientRect().top + window.scrollY - 12
+  window.scrollTo({ top: Math.max(0, y), behavior })
+}
 
 function newAreaId() {
   return `area_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
@@ -124,7 +138,30 @@ export function PlanPage() {
   const [planError, setPlanError] = useState<string | null>(null)
   const [planJustUpdated, setPlanJustUpdated] = useState(false)
   const [showOnboardingSuccess, setShowOnboardingSuccess] = useState(false)
-  const savedPlanAnchorRef = useRef<HTMLDivElement>(null)
+
+  const [draftSections, setDraftSections] = useState({
+    crops: false,
+    areas: false,
+    place: false,
+    threats: false,
+  })
+
+  const scrollToLayoutPreview = useCallback(() => {
+    scrollDocumentToElement(
+      document.getElementById('draft-layout-preview'),
+      'smooth',
+    )
+  }, [])
+
+  const expandBasicsAndScroll = useCallback(() => {
+    setDraftSections((s) => ({ ...s, place: true }))
+    window.requestAnimationFrame(() => {
+      scrollDocumentToElement(
+        document.getElementById('draft-your-place'),
+        'smooth',
+      )
+    })
+  }, [])
 
   const allCrops = useMemo(() => unionCropsFromState(chips, areas), [chips, areas])
 
@@ -175,15 +212,6 @@ export function PlanPage() {
     areas,
     lastEditedAreaId,
   ])
-
-  useEffect(() => {
-    if (elkPlan) {
-      savedPlanAnchorRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-    }
-  }, [elkPlan])
 
   const onFile = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -449,7 +477,12 @@ export function PlanPage() {
         threats,
         userCrops: allCrops,
       })
-      savePlanTasks(mergePlanTaskCompletions(taskList, loadPlanTasks()))
+      savePlanTasks(
+        ensureTomatoesDemoTask(
+          mergePlanTaskCompletions(taskList, loadPlanTasks()),
+          hasTomatoesInPlanInput({ crops: allCrops, areas }),
+        ),
+      )
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong.'
       setPlanError(msg)
@@ -492,113 +525,129 @@ export function PlanPage() {
   }
 
   return (
-    <div className="px-4 pb-10 pt-4">
-      <header className="mb-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-stone-950">
-              Garden Plan
-            </h1>
-            <p className="mt-2 text-lg leading-relaxed text-stone-700">
-              Your <span className="font-medium text-stone-800">current draft</span>{' '}
-              below is edited locally. After Ask ELK, your{' '}
-              <span className="font-medium text-stone-800">saved plan</span> appears
-              on this page and in Tasks — until you clear it or run Ask ELK again.
-            </p>
-          </div>
+    <div className="pt-2 pb-10">
+      <PrimaryPageIntro
+        title="Garden Plan"
+        description="Shape your draft below, then ask ELK for a plan and tasks. Everything saves on this device."
+        action={
           <button
             type="button"
             onClick={resetPlanFlow}
-            className="shrink-0 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 shadow-sm ring-1 ring-stone-200 hover:bg-stone-50"
+            className="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 shadow-sm ring-1 ring-stone-200 hover:bg-stone-50"
           >
             Clear saved garden data
           </button>
-        </div>
-      </header>
+        }
+      />
 
-      <div className="space-y-12">
-        <PlanInputsSection
-          fileInputId={fileInputId}
-          imagePreview={imagePreview}
-          onFileChange={onFile}
-          onClearImage={() => {
-            setImagePreview((prev) => {
-              if (prev) URL.revokeObjectURL(prev)
-              return null
-            })
-          }}
-          chips={chips}
-          chipInput={chipInput}
-          chipAddFeedback={chipAddFeedback}
-          chipDuplicateShakeNonce={chipDuplicateShakeNonce}
-          onChipInputChange={handleChipInputChange}
-          onAddChip={addChip}
-          onRemoveChip={removeChip}
+      <div className="space-y-8 sm:space-y-10">
+        <PlanPageGuidance />
+
+        <GardenPlanSummaryCard
+          areaCount={areas.length}
+          cropCount={allCrops.length}
           locationText={locationText}
-          onLocationChange={setLocationText}
           goal={goal}
-          onGoalChange={setGoal}
-          threats={threats}
-          onToggleThreat={toggleThreat}
-          areas={areas}
-          expandedAreaId={expandedAreaId}
-          onToggleAreaExpand={toggleAreaExpand}
-          onActivateArea={activateArea}
-          showPresetRow={showPresetRow}
-          onStartAddArea={() => setShowPresetRow(true)}
-          onCancelPreset={() => setShowPresetRow(false)}
-          onAddAreaFromPreset={addAreaFromPreset}
-          onRemoveArea={removeArea}
-          onUpdateArea={updateArea}
-          onAddRow={addRow}
-          onRemoveRow={removeRow}
-          onUpdateRow={updateRow}
+          hasElkPlan={!!elkPlan}
+          canAskElk={canAskElk}
+          onViewLayout={scrollToLayoutPreview}
+          onEditBasics={expandBasicsAndScroll}
         />
+
+        <div className="border-t border-stone-200/80 pt-8 sm:pt-10">
+          <PlanInputsSection
+            fileInputId={fileInputId}
+            imagePreview={imagePreview}
+            onFileChange={onFile}
+            onClearImage={() => {
+              setImagePreview((prev) => {
+                if (prev) URL.revokeObjectURL(prev)
+                return null
+              })
+            }}
+            chips={chips}
+            chipInput={chipInput}
+            chipAddFeedback={chipAddFeedback}
+            chipDuplicateShakeNonce={chipDuplicateShakeNonce}
+            onChipInputChange={handleChipInputChange}
+            onAddChip={addChip}
+            onRemoveChip={removeChip}
+            locationText={locationText}
+            onLocationChange={setLocationText}
+            goal={goal}
+            onGoalChange={setGoal}
+            threats={threats}
+            onToggleThreat={toggleThreat}
+            areas={areas}
+            expandedAreaId={expandedAreaId}
+            onToggleAreaExpand={toggleAreaExpand}
+            onActivateArea={activateArea}
+            showPresetRow={showPresetRow}
+            onStartAddArea={() => setShowPresetRow(true)}
+            onCancelPreset={() => setShowPresetRow(false)}
+            onAddAreaFromPreset={addAreaFromPreset}
+            onRemoveArea={removeArea}
+            onUpdateArea={updateArea}
+            onAddRow={addRow}
+            onRemoveRow={removeRow}
+            onUpdateRow={updateRow}
+            draftSections={draftSections}
+            onDraftSectionChange={(key, open) =>
+              setDraftSections((s) => ({ ...s, [key]: open }))
+            }
+          />
+        </div>
+
+        <div className="border-t border-stone-200/80 pt-8 sm:pt-10">
+          <AskElkCtaBar
+            planLoading={planLoading}
+            planError={planError}
+            onAsk={askElk}
+            hasSavedPlan={!!elkPlan}
+            canAsk={canAskElk}
+            minimumInputHint={MINIMUM_INPUT_HINT}
+          />
+        </div>
 
         {elkPlan ? (
-          <section
-            ref={savedPlanAnchorRef}
-            className="rounded-2xl bg-white/80 p-4 ring-1 ring-stone-200/90 sm:p-6"
-            aria-labelledby="saved-plan-heading"
-          >
-            <h2
-              id="saved-plan-heading"
-              className="text-xl font-semibold tracking-tight text-stone-950"
+          <div className="border-t border-stone-200/80 pt-8 sm:pt-10">
+            <section
+              className="rounded-2xl bg-stone-50/80 p-4 ring-1 ring-stone-200/80 sm:p-6"
+              aria-labelledby="generated-plan-heading"
             >
-              Saved plan
-            </h2>
-            <p className="mt-1 text-sm text-stone-500">
-              Last result from Ask ELK — stored on this device only. Change your
-              draft above and run Ask ELK again to replace it.
-            </p>
-            {planJustUpdated ? (
-              <p
-                className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-950 ring-1 ring-emerald-200"
-                role="status"
-              >
-                Plan updated based on your latest inputs.
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+                Generated output
               </p>
-            ) : null}
-            <div className="mt-8">
-              <SavedPlanResults
-                plan={elkPlan}
-                chips={chips}
-                areas={areas}
-                userCrops={allCrops}
-                onAddArea={addAreaFromPreset}
-              />
-            </div>
-          </section>
+              <h2
+                id="generated-plan-heading"
+                className="mt-1 text-lg font-semibold tracking-tight text-stone-700"
+              >
+                Last plan from ELK
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-stone-500">
+                From your last Ask ELK — on this device only. Update your draft
+                above and run Ask ELK again to replace this.
+              </p>
+              {planJustUpdated ? (
+                <p
+                  className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-950 ring-1 ring-emerald-200"
+                  role="status"
+                >
+                  Plan updated based on your latest inputs.
+                </p>
+              ) : null}
+              <div className="mt-6">
+                <SavedPlanResults
+                  plan={elkPlan}
+                  chips={chips}
+                  areas={areas}
+                  userCrops={allCrops}
+                  onAddArea={addAreaFromPreset}
+                />
+              </div>
+            </section>
+          </div>
         ) : null}
-
-        <AskElkCtaBar
-          planLoading={planLoading}
-          planError={planError}
-          onAsk={askElk}
-          hasSavedPlan={!!elkPlan}
-          canAsk={canAskElk}
-          minimumInputHint={MINIMUM_INPUT_HINT}
-        />
       </div>
     </div>
   )

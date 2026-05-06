@@ -1,0 +1,45 @@
+/* DevTools-style dock: fixed right rail, scrolls internally. App offset via --elk-perf-monitor-offset on :root. */
+
+:root {
+  --elk-perf-panel-width: min(520px, 100vw);
+}
+
+.perf-panel-dock {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: var(--elk-perf-panel-width);
+  z-index: 9999;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background-color: #141414;
+  border-left: 1px solid #303030;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.2);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.perf-panel-dock-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Startup waterfall: subtle emphasis when a new request row appears (demo visibility). */
+@keyframes perf-waterfall-row-new {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(54, 207, 201, 0.55),
+      0 0 18px rgba(54, 207, 201, 0.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(54, 207, 201, 0);
+  }
+}
+
+.perf-waterfall-row--new {
+  animation: perf-waterfall-row-new 1.25s ease-out forwards;
+}

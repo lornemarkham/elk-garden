@@ -6,16 +6,20 @@ import { TasksPage } from './features/tasks/TasksPage'
 import { ZoneDetailPage } from './features/zones/ZoneDetailPage'
 import { SetupFlowPage } from './features/setup/SetupFlowPage'
 import { GardenCanvasPage } from './features/canvas/GardenCanvasPage'
+import { IdeasPage } from './features/ideas/IdeasPage'
 import { useGarden } from './lib/useGarden'
+import { IframeHarnessPage, IframeLabPage } from './dev/iframe-lab'
 
 export default function App() {
   const location = useLocation()
   const { profile, isLoading } = useGarden()
+  const devIframeLab =
+    import.meta.env.DEV && (location.pathname === '/dev/iframe-lab' || location.pathname === '/dev/iframe-harness')
 
-  if (isLoading) {
+  if (isLoading && !devIframeLab) {
     return (
       <div className="min-h-dvh bg-stone-50">
-        <div className="mx-auto max-w-xl px-4 py-10">
+        <div className="mx-auto max-w-[720px] px-4 py-10 sm:px-5">
           <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
             <p className="text-base font-semibold text-stone-900">
               Getting ELK Garden ready…
@@ -34,6 +38,12 @@ export default function App() {
 
   return (
     <Routes>
+      {import.meta.env.DEV ? (
+        <>
+          <Route path="/dev/iframe-lab" element={<IframeLabPage />} />
+          <Route path="/dev/iframe-harness" element={<IframeHarnessPage />} />
+        </>
+      ) : null}
       <Route element={<AppShell />}>
         <Route
           index
@@ -47,6 +57,7 @@ export default function App() {
         <Route path="/zones/:zoneId" element={<ZoneDetailPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/canvas" element={<GardenCanvasPage />} />
+        <Route path="/ideas" element={<IdeasPage />} />
         <Route
           path="*"
           element={

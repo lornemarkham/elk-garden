@@ -10,10 +10,13 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.7.0",
+    "@prisma/client": "^7.7.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.4.1",
     "express": "^4.21.2",
     "openai": "^6.15.0",
+    "prisma": "^7.7.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

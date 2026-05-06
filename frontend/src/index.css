@@ -17,6 +17,11 @@ body {
   color: #0c0a09; /* stone-950 */
 }
 
+#root {
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
 @keyframes chip-input-shake {
   0%,
   100% {
@@ -40,6 +45,59 @@ body {
   animation: chip-input-shake 0.38s ease-in-out;
 }
 
+@keyframes task-complete-pulse {
+  0% {
+    background-color: #ffffff;
+  }
+  35% {
+    background-color: #ecfdf5;
+  }
+  100% {
+    background-color: #ecfdf5;
+  }
+}
+
+@keyframes task-check-pop {
+  0% {
+    transform: scale(0.75);
+  }
+  55% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes task-complete-out {
+  0% {
+    max-height: 180px;
+    opacity: 1;
+  }
+  78% {
+    max-height: 180px;
+    opacity: 1;
+  }
+  100% {
+    max-height: 0;
+    opacity: 0;
+    padding-bottom: 0;
+    padding-top: 0;
+  }
+}
+
+.animate-task-complete-pulse {
+  animation: task-complete-pulse 0.7s ease-out;
+}
+
+.animate-task-check-pop {
+  animation: task-check-pop 0.38s ease-out;
+}
+
+.animate-task-complete-out {
+  animation: task-complete-out 2.6s ease-in forwards;
+}
+
 /* Respect users who prefer larger text without breaking layout. */
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -49,7 +107,10 @@ body {
     animation-iteration-count: 1 !important;
   }
 
-  .animate-chip-input-shake {
+  .animate-chip-input-shake,
+  .animate-task-complete-pulse,
+  .animate-task-check-pop,
+  .animate-task-complete-out {
     animation: none;
   }
 }

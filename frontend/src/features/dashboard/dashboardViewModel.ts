@@ -9,7 +9,11 @@ import type {
 } from '../../types'
 import { modeCopy } from '../../lib/mode/mode'
 
+export type DashboardAlertSeverity = 'critical' | 'warning' | 'info'
+
 export interface DashboardViewModel {
+  /** Up to 3 short alerts derived from ingested sensor/camera/human signals. */
+  alerts: Array<{ id: string; message: string; severity: DashboardAlertSeverity }>
   gardenStatus: {
     tone: GardenHealth
     label: string
@@ -20,6 +24,7 @@ export interface DashboardViewModel {
     id: string
     name: string
     moistureStatus: Zone['moistureStatus']
+    health: GardenHealth
     recommendation: string
   }>
   recommendations: Array<{
@@ -27,6 +32,7 @@ export interface DashboardViewModel {
     title: string
     why: string
     nextStep: string
+    estimatedTimeLabel: string
     expanders?: Array<{ title: string; body: string }>
   }>
   production?: {
@@ -64,8 +70,17 @@ function statusCopy(
   tone: GardenHealth,
   mode: GardenMode,
 ): Pick<DashboardViewModel['gardenStatus'], 'label' | 'headline' | 'supportiveText'> {
+  if (tone === 'good') {
+    return {
+      label: 'Listening',
+      headline: 'Waiting for sensor feedback',
+      supportiveText:
+        'Use the Fake Sensor Panel to simulate garden activity. Sensor-driven recommendations will appear here when signals arrive.',
+    }
+  }
+
   return {
-    label: tone === 'good' ? 'Good' : tone === 'watch' ? 'Watch' : 'Action needed',
+    label: tone === 'watch' ? 'Watch' : 'Action needed',
     headline: modeCopy({
       mode,
       kathy:
@@ -80,6 +95,97 @@ function statusCopy(
         "Nothing urgent. A few small adjustments today will help everything stay on track.",
     }),
   }
+}
+
+function estimatedTimeForRecommendation(r: Recommendation): string {
+  if (
+    r.id === 'ext_rec_sensor_tomatoes_dry' ||
+    r.id === 'ext_rec_camera_movement' ||
+    r.id === 'ext_rec_frost_risk'
+  ) {
+    return r.id === 'ext_rec_sensor_tomatoes_dry' ? '~10–20 min' : '~5–10 min'
+  }
+  if (r.id === 'obs_rec_pests' || r.id === 'obs_rec_stressed') {
+    return '~5–10 min'
+  }
+  if (r.id === 'obs_rec_dry') {
+    return '~5 min'
+  }
+  switch (r.kind) {
+    case 'watering':
+      return '~10–20 min'
+    case 'harvest':
+      return '~15–30 min'
+    case 'pest':
+      return '~15–25 min'
+    case 'pruning':
+      return '~10–20 min'
+    case 'check':
+    default:
+      return '~5–15 min'
+  }
+}
+
+function buildDashboardAlerts(
+  garden: Garden,
+  insightRows: Array<{ id: string; title: string }>,
+): Array<{ id: string; message: string; severity: DashboardAlertSeverity }> {
+  const severityRank: Record<DashboardAlertSeverity, number> = {
+    critical: 0,
+    warning: 1,
+    info: 2,
+  }
+
+  type Cand = {
+    id: string
+    message: string
+    severity: DashboardAlertSeverity
+    sortKey: number
+  }
+
+  const insightCands: Cand[] = insightRows.map((i, idx) => ({
+    id: `alert-${i.id}`,
+    message: i.title,
+    severity:
+      i.title.toLowerCase().includes('soil moisture low') ||
+      i.title.toLowerCase().includes('frost risk')
+        ? 'critical' as const
+        : i.id.startsWith('obs_') || i.id.startsWith('ext_')
+          ? 'warning' as const
+          : 'info' as const,
+    sortKey: 1000 + idx,
+  }))
+  const tomatoes = garden.zones.find((z) => z.id === 'zone_tomatoes')
+  const tomatoFollowUpCands: Cand[] =
+    tomatoes?.moistureStatus === 'good' &&
+    tomatoes.headline.startsWith('Tomatoes watered')
+      ? [
+          {
+            id: 'alert-tomatoes-follow-up',
+            message: 'Tomatoes watered — check again tomorrow',
+            severity: 'info' as const,
+            sortKey: 900,
+          },
+        ]
+      : []
+
+  const merged = [...tomatoFollowUpCands, ...insightCands].sort(
+    (a, b) =>
+      severityRank[a.severity] - severityRank[b.severity] ||
+      a.sortKey - b.sortKey ||
+      a.message.localeCompare(b.message),
+  )
+
+  const out: Array<{ id: string; message: string; severity: DashboardAlertSeverity }> =
+    []
+  const seenMsg = new Set<string>()
+  for (const c of merged) {
+    if (out.length >= 3) break
+    if (seenMsg.has(c.message)) continue
+    seenMsg.add(c.message)
+    out.push({ id: c.id, message: c.message, severity: c.severity })
+  }
+  return out
 }
 
 function sortRecommendations(recs: Recommendation[]) {
@@ -98,6 +204,17 @@ function sortRecommendations(recs: Recommendation[]) {
       priorityRank[a.priority] - priorityRank[b.priority] ||
       dueRank[a.due] - dueRank[b.due],
   )
+}
+
+function isTomatoesDry(garden: Garden): boolean {
+  return (
+    garden.zones.find((z) => z.id === 'zone_tomatoes')?.moistureStatus ===
+    'dry'
+  )
+}
+
+function isZoneWet(garden: Garden, zoneId: string): boolean {
+  return garden.zones.find((z) => z.id === zoneId)?.moistureStatus === 'wet'
 }
 
 function personalizeWhy(why: string, profile: GardenProfile | null) {
@@ -223,8 +340,42 @@ export function getDashboardViewModel(
 ): DashboardViewModel {
   const tone = worstHealth(garden.zones)
   const copy = statusCopy(tone, mode)
+  const tomatoesDry = isTomatoesDry(garden)
+  const completedTaskIds = new Set(
+    garden.tasks.filter((t) => t.completed).map((t) => t.id),
+  )
+
+  const insights = garden.cameraInsights.slice(0, 3).map((i) => ({
+    id: i.id,
+    kind: i.kind,
+    title: modeCopy({
+      mode,
+      kathy:
+        i.id === 'insight_animal_1'
+          ? 'Something stopped by last night — worth a quick peek, just to keep your plants safe.'
+          : i.title,
+      lorne:
+        i.id === 'insight_animal_1'
+          ? 'Possible intrusion last night — inspect for damage'
+          : i.title,
+    }),
+    detail: modeCopy({
+      mode,
+      kathy: i.detail,
+      lorne:
+        i.id === 'insight_animal_1'
+          ? 'Movement near tomatoes around 2:10am. Check leaves and fruit for nibbling.'
+          : i.detail,
+    }),
+  }))
+
+  const alerts = buildDashboardAlerts(
+    garden,
+    insights.map((i) => ({ id: i.id, title: i.title })),
+  )
 
   return {
+    alerts,
     gardenStatus: {
       tone,
       ...copy,
@@ -233,23 +384,35 @@ export function getDashboardViewModel(
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((z) => ({
         id: z.id,
-        name: z.name,
+        name: `Zone ${z.sortOrder} ${z.name}`,
         moistureStatus: z.moistureStatus,
+        health: z.health,
         recommendation: z.headline,
       })),
-    recommendations: sortRecommendations(garden.recommendations)
+    recommendations: sortRecommendations(
+      garden.recommendations.filter(
+        (r) =>
+          (r.id !== 'rec_water_west' ||
+            (tomatoesDry && !completedTaskIds.has('task_water_tomatoes'))) &&
+          (r.id !== 'rec_melons_dry_out' ||
+            isZoneWet(garden, 'zone_melons')) &&
+          (r.id !== 'rec_quick_walkthrough' ||
+            !completedTaskIds.has('task_walkthrough')),
+      ),
+    )
       .slice(0, 3)
       .map((r) => ({
         id: r.id,
+        estimatedTimeLabel: estimatedTimeForRecommendation(r),
         title: modeCopy({
           mode,
           kathy:
             r.id === 'rec_water_west'
-              ? "Your tomatoes would really appreciate a nice deep soak this evening — you're setting them up for great growth."
+              ? 'Water tomatoes tonight'
               : r.title,
           lorne:
             r.id === 'rec_water_west'
-              ? 'Tomatoes need a deep soak tonight to maintain fruit production'
+              ? 'Water tomatoes tonight'
               : r.title,
         }),
         why: modeCopy({
@@ -286,35 +449,16 @@ export function getDashboardViewModel(
               ]
             : undefined,
       })),
-    insights: garden.cameraInsights.slice(0, 3).map((i) => ({
-      id: i.id,
-      kind: i.kind,
-      title: modeCopy({
-        mode,
-        kathy:
-          i.id === 'insight_animal_1'
-            ? 'Something stopped by last night — worth a quick peek, just to keep your plants safe.'
-            : i.title,
-        lorne:
-          i.id === 'insight_animal_1'
-            ? 'Possible intrusion last night — inspect for damage'
-            : i.title,
-      }),
-      detail: modeCopy({
-        mode,
-        kathy: i.detail,
-        lorne:
-          i.id === 'insight_animal_1'
-            ? 'Movement near tomatoes around 2:10am. Check leaves and fruit for nibbling.'
-            : i.detail,
-      }),
-    })),
-    tasks: garden.tasks.slice(0, 3).map((t) => ({
-      id: t.id,
-      title: t.title,
-      supportiveNote: t.supportiveNote,
-      completed: t.completed,
-    })),
+    insights,
+    tasks: garden.tasks
+      .filter((t) => t.id !== 'task_water_tomatoes' || tomatoesDry)
+      .slice(0, 3)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        supportiveNote: t.supportiveNote,
+        completed: t.completed,
+      })),
     weather: {
       summaryLine: `${weather.summary} • High ${weather.highF}° • Low ${weather.lowF}°`,
       wateringWindowLabel: weather.wateringWindow.label,

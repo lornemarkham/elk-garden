@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  gardens   Garden[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Garden {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  locationLabel String?
+  goalMode      String?
+  notes         String?
+  areas         Area[]
+  tasks         Task[]
+  generatedPlan GeneratedPlan?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Area {
+  id                  String    @id @default(cuid())
+  gardenId            String
+  garden              Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  name                String
+  width               Float?
+  length              Float?
+  sizeLabel           String?
+  sunExposure         String?
+  notes               String?
+  plannedPlantingDate DateTime?
+  rows                Row[]
+  logs                AreaLog[]
+  tasks               Task[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Row {
+  id         String   @id @default(cuid())
+  areaId     String
+  area       Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  rowNumber  Int
+  cropName   String
+  isPlanted  Boolean  @default(false)
+  notes      String?
+  logs       RowLog[]
+  tasks      Task[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model GeneratedPlan {
+  id              String   @id @default(cuid())
+  gardenId        String   @unique
+  garden          Garden   @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  summary         String?
+  plantingTiming  String?
+  rawResponseJson String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Task {
+  id            String    @id @default(cuid())
+  gardenId      String
+  garden        Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  areaId        String?
+  area          Area?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  rowId         String?
+  row           Row?      @relation(fields: [rowId], references: [id], onDelete: SetNull)
+  title         String
+  description   String?
+  whyText       String?
+  watchForText  String?
+  doneRightText String?
+  section       String?
+  isCompleted   Boolean   @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AreaLog {
+  id        String   @id @default(cuid())
+  areaId    String
+  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  note      String
+  createdAt DateTime @default(now())
+}
+
+model RowLog {
+  id        String   @id @default(cuid())
+  rowId     String
+  row       Row      @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  note      String
+  createdAt DateTime @default(now())
+}

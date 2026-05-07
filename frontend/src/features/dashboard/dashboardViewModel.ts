@@ -26,12 +26,37 @@ export interface DashboardViewModel {
     headline: string
     supportiveText: string
   }
+  morningStatus: {
+    healthScore: number
+    headline: string
+    weatherSummary: string
+    effortLevel: string
+    wateringGuidance: string
+    topRecommendations: Array<{
+      id: string
+      title: string
+      why: string
+    }>
+    alerts: Array<{
+      id: string
+      label: string
+      tone: 'moisture' | 'heat' | 'info'
+    }>
+  }
   zones: Array<{
     id: string
     name: string
     moistureStatus: Zone['moistureStatus']
     health: GardenHealth
     recommendation: string
+    healthScore: number
+    moisturePct: number
+    sunlightPct: number
+    temperatureF: number
+    humidityPct: number
+    trend: 'Moisture falling' | 'Stable' | 'Recovering after watering'
+    recommendedAction: string
+    cropSummary: string
   }>
   recommendations: Array<{
     id: string
@@ -66,10 +91,226 @@ export interface DashboardViewModel {
   }
 }
 
+type SimulatedZoneStatus = DashboardViewModel['zones'][number]
+
+type ZoneProfile = {
+  cropSummary: string
+  bedType: 'container' | 'raised-bed' | 'in-ground'
+  sunExposure: 'full-sun' | 'partial-shade' | 'mulched'
+  waterDemand: 'high' | 'medium' | 'low'
+}
+
+const zoneProfiles: Record<string, ZoneProfile> = {
+  zone_tomatoes: {
+    cropSummary: 'Tomatoes, Basil',
+    bedType: 'raised-bed',
+    sunExposure: 'full-sun',
+    waterDemand: 'high',
+  },
+  zone_greens: {
+    cropSummary: 'Lettuce, Kale, Greens',
+    bedType: 'in-ground',
+    sunExposure: 'partial-shade',
+    waterDemand: 'medium',
+  },
+  zone_roots: {
+    cropSummary: 'Carrots, Beets, Radishes',
+    bedType: 'in-ground',
+    sunExposure: 'mulched',
+    waterDemand: 'medium',
+  },
+  zone_melons: {
+    cropSummary: 'Melons, Squash',
+    bedType: 'container',
+    sunExposure: 'full-sun',
+    waterDemand: 'high',
+  },
+}
+
 function worstHealth(zones: Zone[]): GardenHealth {
   if (zones.some((z) => z.health === 'action')) return 'action'
   if (zones.some((z) => z.health === 'watch')) return 'watch'
   return 'good'
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, Math.round(n)))
+}
+
+function readingValue(garden: Garden, sensorId: string, fallback: number) {
+  return garden.readings.find((r) => r.sensorId === sensorId)?.value ?? fallback
+}
+
+function moistureSensorId(zoneId: string) {
+  return {
+    zone_tomatoes: 'sensor_tomatoes_moisture',
+    zone_greens: 'sensor_greens_moisture',
+    zone_roots: 'sensor_roots_moisture',
+    zone_melons: 'sensor_melons_moisture',
+  }[zoneId]
+}
+
+function simulateZoneStatus(
+  garden: Garden,
+  zone: Zone,
+  weather: WeatherSummary,
+): SimulatedZoneStatus {
+  const profile = zoneProfiles[zone.id] ?? {
+    cropSummary: 'Mixed garden crops',
+    bedType: 'raised-bed' as const,
+    sunExposure: 'partial-shade' as const,
+    waterDemand: 'medium' as const,
+  }
+  const hour = new Date().getHours()
+  const afternoonHeat = hour >= 12 ? Math.max(0, weather.highF - 78) : 0
+  const sensorId = moistureSensorId(zone.id)
+  const rawReading = sensorId ? readingValue(garden, sensorId, 38) : 38
+  // Zone status from signals shifts the simulated moisture reading so the
+  // dashboard visibly reacts when a sensor or human report fires.
+  const statusMod =
+    zone.moistureStatus === 'dry' ? -16 : zone.moistureStatus === 'wet' ? 14 : 0
+  const baseMoisture = clamp(rawReading + statusMod, 14, 80)
+  const demandDrying = profile.waterDemand === 'high' ? 7 : profile.waterDemand === 'medium' ? 4 : 2
+  const bedDrying = profile.bedType === 'container' ? 8 : profile.bedType === 'raised-bed' ? 4 : 1
+  const shadeRetention =
+    profile.sunExposure === 'partial-shade' ? 7 : profile.sunExposure === 'mulched' ? 10 : -3
+  const rainBoost = weather.precipitationChancePct >= 55 ? 10 : 0
+  const moisturePct = clamp(
+    baseMoisture - afternoonHeat * 0.45 - demandDrying - bedDrying + shadeRetention + rainBoost,
+    16,
+    78,
+  )
+  const sunlightPct = clamp(
+    profile.sunExposure === 'full-sun'
+      ? 84 + (hour > 10 && hour < 17 ? 8 : 0)
+      : profile.sunExposure === 'partial-shade'
+        ? 52
+        : 68,
+    25,
+    96,
+  )
+  const temperatureF = clamp(weather.highF - (profile.sunExposure === 'partial-shade' ? 5 : 0), 45, 105)
+  const humidityPct = clamp(
+    58 + weather.precipitationChancePct * 0.28 - Math.max(0, weather.highF - 82) * 0.7,
+    24,
+    88,
+  )
+  const heatPressure = temperatureF >= 88 && sunlightPct >= 75
+  const trend: SimulatedZoneStatus['trend'] =
+    zone.moistureStatus === 'dry'
+      ? 'Moisture falling'
+      : weather.precipitationChancePct >= 60 || zone.moistureStatus === 'wet'
+        ? 'Recovering after watering'
+        : moisturePct < baseMoisture - 4 || heatPressure
+          ? 'Moisture falling'
+          : 'Stable'
+  const healthScore = clamp(
+    100 -
+      Math.max(0, 38 - moisturePct) * 1.2 -
+      Math.max(0, temperatureF - 88) * 1.1 -
+      (heatPressure ? 5 : 0) -
+      (zone.health === 'action' ? 20 : zone.health === 'watch' ? 10 : 0),
+    30,
+    96,
+  )
+  const recommendedAction =
+    moisturePct < 30
+      ? `Consider watering this evening because ${profile.cropSummary.toLowerCase()} are drying down.`
+      : heatPressure
+        ? 'Check leaves this evening and water only if the top inch is dry.'
+        : weather.precipitationChancePct >= 55
+          ? 'Rain may help soon, so avoid extra watering unless soil feels dry.'
+          : profile.sunExposure === 'mulched'
+            ? 'Mulch is helping this bed hold moisture. Keep observing.'
+            : 'No urgent action. A quick look later is enough.'
+
+  return {
+    id: zone.id,
+    name: `Zone ${zone.sortOrder} ${zone.name}`,
+    moistureStatus: zone.moistureStatus,
+    health: zone.health,
+    recommendation: zone.headline,
+    healthScore,
+    moisturePct,
+    sunlightPct,
+    temperatureF,
+    humidityPct,
+    trend,
+    recommendedAction,
+    cropSummary: profile.cropSummary,
+  }
+}
+
+function buildMorningStatus(
+  weather: WeatherSummary,
+  zones: SimulatedZoneStatus[],
+): DashboardViewModel['morningStatus'] {
+  const healthScore = clamp(
+    zones.reduce((sum, z) => sum + z.healthScore, 0) / Math.max(1, zones.length),
+    1,
+    100,
+  )
+  const moistureAlerts = zones
+    .filter((z) => z.moisturePct < 34)
+    .map((z) => ({
+      id: `${z.id}-moisture`,
+      label: `${z.name} moisture dropping faster than expected.`,
+      tone: 'moisture' as const,
+    }))
+  const heatAlerts = zones
+    .filter((z) => z.temperatureF >= 88 && z.sunlightPct >= 75)
+    .map((z) => ({
+      id: `${z.id}-heat`,
+      label: `${z.name} may feel afternoon heat stress.`,
+      tone: 'heat' as const,
+    }))
+  const calmAlert =
+    moistureAlerts.length === 0 && heatAlerts.length === 0
+      ? [
+          {
+            id: 'stable-morning',
+            label: 'Most beds look steady this morning.',
+            tone: 'info' as const,
+          },
+        ]
+      : []
+  const topZones = [...zones].sort((a, b) => a.healthScore - b.healthScore).slice(0, 3)
+  const topRecommendations = topZones.map((z) => ({
+    id: `${z.id}-morning-rec`,
+    title:
+      z.moisturePct < 32
+        ? `${z.name}: plan a calm evening watering check`
+        : z.temperatureF >= 88 && z.sunlightPct >= 75
+          ? `${z.name}: watch for heat stress after 2pm`
+          : `${z.name}: keep observing, no urgent work`,
+    why:
+      z.moisturePct < 32
+        ? `${z.name} moisture is around ${z.moisturePct}% after warm conditions, and ${z.cropSummary.toLowerCase()} prefer steadier root moisture.`
+        : z.temperatureF >= 88 && z.sunlightPct >= 75
+          ? `High heat is expected after 2pm, and this bed is receiving strong sun. A short leaf check builds confidence before watering.`
+          : `${z.cropSummary} look stable. The simulated readings suggest this can stay a low-effort garden day.`,
+  }))
+  const needsWater = zones.some((z) => z.moisturePct < 32)
+  const rainSoon = weather.precipitationChancePct >= 55
+  return {
+    healthScore,
+    headline:
+      healthScore >= 82
+        ? 'Your garden checked itself this morning.'
+        : 'Your garden found a few gentle things to watch today.',
+    weatherSummary: `${weather.summary}. High ${weather.highF}F, low ${weather.lowF}F, ${weather.precipitationChancePct}% rain chance.`,
+    effortLevel:
+      needsWater || weather.highF >= 92
+        ? 'Moderate-effort garden day.'
+        : 'Low-effort garden day.',
+    wateringGuidance: rainSoon
+      ? 'Storm expected soon, so watering may not be necessary unless a bed feels dry.'
+      : needsWater
+        ? 'Evening is the gentlest watering window if the top inch feels dry.'
+        : 'No broad watering needed right now. Spot-check full-sun beds later.',
+    topRecommendations,
+    alerts: [...moistureAlerts, ...heatAlerts, ...calmAlert].slice(0, 4),
+  }
 }
 
 function statusCopy(
@@ -366,6 +607,10 @@ export function getDashboardViewModel(
   const completedTaskIds = new Set(
     garden.tasks.filter((t) => t.completed).map((t) => t.id),
   )
+  const simulatedZones = [...garden.zones]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((z) => simulateZoneStatus(garden, z, weather))
+  const morningStatus = buildMorningStatus(weather, simulatedZones)
 
   const insights = [...garden.cameraInsights]
     .sort(
@@ -417,15 +662,8 @@ export function getDashboardViewModel(
       tone,
       ...copy,
     },
-    zones: [...garden.zones]
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((z) => ({
-        id: z.id,
-        name: `Zone ${z.sortOrder} ${z.name}`,
-        moistureStatus: z.moistureStatus,
-        health: z.health,
-        recommendation: z.headline,
-      })),
+    morningStatus,
+    zones: simulatedZones,
     recommendations: sortRecommendations(
       garden.recommendations.filter(
         (r) =>

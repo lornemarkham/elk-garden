@@ -16,7 +16,7 @@ import type { DashboardAlertSeverity } from './dashboardViewModel'
 import { getDashboardViewModel } from './dashboardViewModel'
 import { NavLink } from 'react-router-dom'
 import type { Garden, GardenMode, GardenProfile, WeatherSummary, Zone } from '../../types'
-import type { GardenObservationEvent } from '../../lib/garden/GardenStore'
+import type { ActivityLogEntry, GardenObservationEvent } from '../../lib/garden/GardenStore'
 
 type QuickObservationTag = 'pests' | 'stressed' | 'soil_dry'
 
@@ -70,8 +70,20 @@ function alertRowClass(severity: DashboardAlertSeverity): string {
   }
 }
 
+function morningAlertClass(tone: 'moisture' | 'heat' | 'info') {
+  if (tone === 'heat') return 'bg-amber-50 text-amber-950 ring-amber-100'
+  if (tone === 'moisture') return 'bg-sky-50 text-sky-950 ring-sky-100'
+  return 'bg-emerald-50 text-emerald-950 ring-emerald-100'
+}
+
+function trendClass(trend: string) {
+  if (trend === 'Moisture falling') return 'text-amber-800'
+  if (trend === 'Recovering after watering') return 'text-sky-800'
+  return 'text-emerald-800'
+}
+
 export function DashboardPage() {
-  const { garden, weather, profile, isLoading, error } = useGarden()
+  const { garden, weather, profile, isLoading, error, activityLog } = useGarden()
 
   if (isLoading) {
     return (
@@ -133,6 +145,7 @@ export function DashboardPage() {
       garden={garden}
       weather={weather}
       profile={profile}
+      activityLog={activityLog}
     />
   )
 }
@@ -141,10 +154,12 @@ function DashboardContent({
   garden,
   weather,
   profile,
+  activityLog,
 }: {
   garden: Garden
   weather: WeatherSummary
   profile: GardenProfile | null
+  activityLog: ActivityLogEntry[]
 }) {
   const {
     gardenMode,
@@ -376,6 +391,69 @@ function DashboardContent({
         </div>
       ) : null}
 
+      <SectionContainer
+        title="Morning Garden Status"
+        subtitle="Your garden checked itself this morning."
+      >
+        <div className="rounded-[1.75rem] bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:p-5">
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+            <div>
+              <p className="text-2xl font-bold tracking-tight text-stone-950 sm:text-3xl">
+                Garden health: {vm.morningStatus.healthScore}%
+              </p>
+              <p className="mt-2 text-base leading-relaxed text-stone-700">
+                {vm.morningStatus.headline}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                {vm.morningStatus.weatherSummary}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-950 ring-1 ring-emerald-100">
+              {vm.morningStatus.effortLevel}
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {vm.morningStatus.alerts.map((alert) => (
+              <div
+                key={alert.id}
+                className={clsx(
+                  'rounded-2xl px-4 py-3 text-sm font-semibold leading-snug ring-1',
+                  morningAlertClass(alert.tone),
+                )}
+              >
+                {alert.label}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-2xl bg-stone-50 px-4 py-3 ring-1 ring-stone-200">
+            <p className="text-sm font-bold text-stone-950">
+              Watering guidance
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-stone-700">
+              {vm.morningStatus.wateringGuidance}
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {vm.morningStatus.topRecommendations.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-2xl bg-white px-4 py-3 ring-1 ring-stone-200"
+              >
+                <p className="text-base font-bold leading-snug text-stone-950">
+                  {r.title}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-stone-700">
+                  {r.why}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SectionContainer>
+
       <div className="mb-5 sm:mb-6">
         <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200 sm:p-4">
           <p className="text-sm font-semibold text-stone-900">Garden mode</p>
@@ -495,7 +573,7 @@ function DashboardContent({
         )}
       </SectionContainer>
 
-      <SectionContainer title="Zone status" subtitle="Moisture at a glance — tap a zone for detail.">
+      <SectionContainer title="Garden zone status" subtitle="Believable local sensor trends for each bed. Tap a zone for detail.">
         <div className="grid gap-2 sm:grid-cols-2">
           {vm.zones.map((z) => {
               const zoneSignal = observationZoneSignal(z.name, z.recommendation)
@@ -504,37 +582,76 @@ function DashboardContent({
                   key={z.id}
                   to={`/zones/${z.id}`}
                   className={clsx(
-                    'flex flex-col gap-1 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-stone-200 transition hover:bg-stone-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
+                    'flex flex-col gap-3 rounded-2xl bg-white px-4 py-4 shadow-sm ring-1 ring-stone-200 transition hover:bg-stone-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
                     updatedZoneId === z.id &&
                       'animate-task-complete-pulse bg-emerald-50/70 ring-emerald-300',
                   )}
                 >
-                  <span className="font-semibold leading-snug text-stone-950">
-                    {z.name}
-                  </span>
-                  <span className="text-sm font-bold leading-snug text-stone-800">
-                    <span className={clsx(moistureClass(z.moistureStatus))}>
-                      {moistureLabel(z.moistureStatus)}
+                  <span className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="block font-bold leading-snug text-stone-950">
+                        {z.name}
+                      </span>
+                      <span className="mt-1 block text-sm text-stone-600">
+                        Crops: {z.cropSummary}
+                      </span>
                     </span>
+                    <span className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-950 ring-1 ring-emerald-100">
+                      {z.healthScore}%
+                    </span>
+                  </span>
+
+                  <span className="grid grid-cols-2 gap-2 text-sm">
+                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Moisture
+                      </span>
+                      <span className={clsx('font-bold', moistureClass(z.moistureStatus))}>
+                        {z.moisturePct}%
+                      </span>
+                    </span>
+                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Sunlight
+                      </span>
+                      <span className="font-bold text-stone-900">{z.sunlightPct}%</span>
+                    </span>
+                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Temp
+                      </span>
+                      <span className="font-bold text-stone-900">{z.temperatureF}F</span>
+                    </span>
+                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        Humidity
+                      </span>
+                      <span className="font-bold text-stone-900">{z.humidityPct}%</span>
+                    </span>
+                  </span>
+
+                  <span className="text-sm font-bold leading-snug text-stone-800">
+                    Trend:{' '}
+                    <span className={clsx(trendClass(z.trend))}>{z.trend}</span>
                     {zoneSignal ? (
                       <>
                         <span className="font-normal text-stone-400"> • </span>
                         <span className="text-amber-900">{zoneSignal}</span>
                       </>
                     ) : null}
-                    {!zoneSignal &&
-                    (z.health === 'watch' || z.health === 'action') ? (
-                      <>
-                        <span className="font-normal text-stone-400"> • </span>
-                        <span className="text-amber-900">Signal received</span>
-                      </>
-                    ) : null}
                   </span>
-                  {z.health === 'watch' || z.health === 'action' ? (
-                    <span className="mt-1 text-sm leading-snug text-stone-600">
-                      {z.recommendation}
+
+                  <span className="rounded-2xl bg-stone-50 px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-100">
+                    <span className="font-bold text-stone-950">Recommendation: </span>
+                    {z.health === 'watch' || z.health === 'action' ? (
+                      <>{z.recommendation}</>
+                    ) : (
+                      <>{z.recommendedAction}</>
+                    )}
+                  </span>
+                  <span className="sr-only">
+                    {moistureLabel(z.moistureStatus)}
                     </span>
-                  ) : null}
                 </NavLink>
               )
           })}
@@ -621,6 +738,62 @@ function DashboardContent({
           Dev test: simulate 24h
         </button>
       </SectionContainer>
+
+      {/* Garden Activity Feed */}
+      {activityLog.length > 0 ? (
+        <SectionContainer
+          title="Garden Activity"
+          subtitle="Signals flowing into your garden system."
+        >
+          <ol className="grid gap-2">
+            {activityLog.slice(0, 10).map((entry) => (
+              <li
+                key={entry.id}
+                className={clsx(
+                  'flex items-start gap-3 rounded-2xl px-4 py-3 ring-1',
+                  entry.direction === 'positive'
+                    ? 'bg-emerald-50/60 ring-emerald-100'
+                    : 'bg-white ring-stone-200',
+                )}
+              >
+                <span
+                  className={clsx(
+                    'mt-0.5 shrink-0 text-sm font-bold',
+                    entry.direction === 'positive'
+                      ? 'text-emerald-600'
+                      : 'text-amber-600',
+                  )}
+                  aria-hidden="true"
+                >
+                  {entry.direction === 'positive' ? '↑' : '↓'}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold leading-snug text-stone-900">
+                    {entry.message}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-stone-500">
+                    {new Date(entry.capturedAtISO).toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                    {' · '}
+                    {entry.source === 'arduino'
+                      ? 'Sensor'
+                      : entry.source === 'camera'
+                        ? 'Camera'
+                        : entry.source === 'weather'
+                          ? 'Weather'
+                          : 'You'}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs text-stone-400 italic">
+            Signals from sensors, weather, camera, and human observations flow here.
+          </p>
+        </SectionContainer>
+      ) : null}
 
       {/*
         "View insights & full detail" — hidden until the full insights experience ships.

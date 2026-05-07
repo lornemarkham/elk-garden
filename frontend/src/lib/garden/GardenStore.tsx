@@ -16,6 +16,7 @@ import {
 } from './tomatoMoistureState'
 import {
   ingestGardenSignal,
+  type ActivityLogEntry,
   type GardenSignalEvent,
   type GardenSignalIngestionResult,
 } from './sensorIngestion'
@@ -57,7 +58,10 @@ type GardenState = {
   gardenMode: GardenMode
   isLoading: boolean
   error: string | null
+  activityLog: ActivityLogEntry[]
 }
+
+export type { ActivityLogEntry }
 
 type GardenActions = {
   toggleTask(taskId: string): TaskCompletionResult | null
@@ -66,6 +70,9 @@ type GardenActions = {
   simulateTomato24Hours(): void
   reportObservation(event: GardenObservationEvent): GardenObservationResult
   ingestSignal(event: GardenSignalEvent): GardenSignalIngestionResult | null
+  resetGarden(): Promise<void>
+  advanceTime(hours: 6 | 24): void
+  clearActivityLog(): void
 }
 
 const GardenContext = createContext<(GardenState & GardenActions) | null>(null)
@@ -224,6 +231,57 @@ function withObservationEvent(garden: Garden, event: GardenObservationEvent): {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Simulation helpers — used by advanceTime action
+// ---------------------------------------------------------------------------
+
+const ADV_SENSORS: Record<string, string> = {
+  zone_tomatoes: 'sensor_tomatoes_moisture',
+  zone_greens: 'sensor_greens_moisture',
+  zone_roots: 'sensor_roots_moisture',
+  zone_melons: 'sensor_melons_moisture',
+}
+
+const ADV_DROPS: Record<string, number> = {
+  zone_tomatoes: 12,
+  zone_melons: 12,
+  zone_greens: 7,
+  zone_roots: 6,
+}
+
+function advanceGardenTime(garden: Garden, hours: 6 | 24): Garden {
+  const multiplier = hours >= 24 ? 2.0 : 1.0
+  const updatedReadings = garden.readings.map((r) => {
+    const zoneId = Object.entries(ADV_SENSORS).find(([, s]) => s === r.sensorId)?.[0]
+    if (!zoneId) return r
+    const drop = (ADV_DROPS[zoneId] ?? 8) * multiplier
+    return { ...r, value: Math.max(14, Math.round(r.value - drop)) }
+  })
+  const updatedZones = garden.zones.map((z) => {
+    const sensorId = ADV_SENSORS[z.id]
+    const newValue = updatedReadings.find((r) => r.sensorId === sensorId)?.value
+    if (newValue === undefined) return z
+    if (newValue <= 18) {
+      return {
+        ...z,
+        moistureStatus: 'dry' as const,
+        health: 'action' as const,
+        headline: 'Soil is quite dry — water soon.',
+      }
+    }
+    if (newValue <= 25) {
+      return {
+        ...z,
+        moistureStatus: 'dry' as const,
+        health: z.health === 'action' ? ('action' as const) : ('watch' as const),
+        headline: 'Moisture running low — check and water soon.',
+      }
+    }
+    return z
+  })
+  return { ...garden, readings: updatedReadings, zones: updatedZones }
+}
+
 export function GardenProvider({ children }: { children: React.ReactNode }) {
   const initialGardenMode: GardenMode = (() => {
     const raw = localStorage.getItem('elk_garden_mode_v1')
@@ -237,6 +295,7 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
     gardenMode: initialGardenMode,
     isLoading: true,
     error: null,
+    activityLog: [],
   })
 
   useEffect(() => {
@@ -439,18 +498,72 @@ export function GardenProvider({ children }: { children: React.ReactNode }) {
         }
         setState((s) => {
           if (!s.garden) return s
+          const activityLog = result.activityEntry
+            ? [result.activityEntry, ...s.activityLog].slice(0, 50)
+            : s.activityLog
           if (result.tomatoMoistureState) {
             return {
               ...s,
+              activityLog,
               garden: applyTomatoMoistureState(
                 result.garden,
                 result.tomatoMoistureState,
               ),
             }
           }
-          return { ...s, garden: result.garden }
+          return { ...s, activityLog, garden: result.garden }
         })
         return result
+      },
+      async resetGarden() {
+        const defaultTomato: TomatoMoistureState = {
+          moistureStatus: 'ok',
+          lastWateredAt: null,
+          needsFollowUpCheck: false,
+          source: 'task-completion',
+        }
+        saveTomatoMoistureState(defaultTomato)
+        const freshGarden = await gardenDataSource.getGarden()
+        setState((s) => ({
+          ...s,
+          garden: applyTomatoMoistureState(freshGarden, defaultTomato),
+          activityLog: [],
+        }))
+      },
+      advanceTime(hours: 6 | 24) {
+        const now = new Date().toISOString()
+        const entry: ActivityLogEntry = {
+          id: `advance-${hours}h-${now}`,
+          capturedAtISO: now,
+          message:
+            hours === 24
+              ? 'Simulation: 24-hour advance — garden conditions updated'
+              : 'Simulation: 6-hour advance — afternoon conditions applied',
+          kind: 'healthy',
+          source: 'local-dev-tool',
+          direction: 'alert',
+        }
+        setState((s) => {
+          if (!s.garden) return s
+          const nextGarden = advanceGardenTime(s.garden, hours)
+          const tomatoZone = nextGarden.zones.find((z) => z.id === TOMATOES_ZONE_ID)
+          if (tomatoZone?.moistureStatus === 'dry') {
+            saveTomatoMoistureState({
+              moistureStatus: 'dry',
+              lastWateredAt: null,
+              needsFollowUpCheck: false,
+              source: 'sensor-ingestion',
+            })
+          }
+          return {
+            ...s,
+            garden: nextGarden,
+            activityLog: [entry, ...s.activityLog].slice(0, 50),
+          }
+        })
+      },
+      clearActivityLog() {
+        setState((s) => ({ ...s, activityLog: [] }))
       },
     }),
     [state.garden],

@@ -2,7 +2,7 @@ import { LayoutGrid, Leaf, ListChecks, Sprout } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { useEffect, useState, type ReactNode } from 'react'
-import { FakeSensorPanel } from './dev/FakeSensorPanel'
+import { SignalLab } from './dev/SignalLab'
 
 /** Readable line length on large screens; comfortable on small laptops and phones. */
 const CONTENT_MAX = 'max-w-[720px]'
@@ -166,7 +166,7 @@ export function AppShell() {
         </div>
         <Outlet />
       </main>
-      <FakeSensorPanel enabled={demoModeEnabled} />
+      <SignalLab enabled={demoModeEnabled} />
       <BottomNav />
     </div>
   )

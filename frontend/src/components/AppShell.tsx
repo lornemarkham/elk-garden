@@ -1,14 +1,88 @@
-import { LayoutGrid, Leaf, ListChecks, Sprout } from 'lucide-react'
+import { LayoutGrid, Leaf, ListChecks, Package, Sprout } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SignalLab } from './dev/SignalLab'
+import { usePlanControl } from '../lib/capabilities/CapabilityProvider'
+import type { PlanId } from '../lib/capabilities/types'
 
 /** Readable line length on large screens; comfortable on small laptops and phones. */
 const CONTENT_MAX = 'max-w-[720px]'
 
+// ---------------------------------------------------------------------------
+// Dev-only plan switcher — lets you preview gated features without billing
+// ---------------------------------------------------------------------------
+
+const PLAN_ORDER: PlanId[] = ['free', 'grower', 'operator']
+const PLAN_COLORS: Record<PlanId, string> = {
+  free: 'bg-stone-100 text-stone-700 ring-stone-200',
+  grower: 'bg-emerald-50 text-emerald-900 ring-emerald-200',
+  operator: 'bg-sky-50 text-sky-900 ring-sky-200',
+}
+
+function PlanSwitcher() {
+  const { currentPlan, setPlan } = usePlanControl()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={clsx(
+          'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ring-1',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2',
+          PLAN_COLORS[currentPlan.id],
+        )}
+        aria-label="Switch plan preview"
+        title="Dev: switch plan to preview feature gates"
+      >
+        Plan: {currentPlan.name}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-44 rounded-2xl bg-white py-1.5 shadow-lg ring-1 ring-stone-200">
+          {PLAN_ORDER.map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => { setPlan(id); setOpen(false) }}
+              className={clsx(
+                'flex w-full items-center justify-between px-4 py-2.5 text-xs font-semibold transition',
+                'focus-visible:outline-none',
+                currentPlan.id === id
+                  ? 'bg-stone-50 text-stone-900'
+                  : 'text-stone-700 hover:bg-stone-50',
+              )}
+            >
+              <span className="capitalize">{id}</span>
+              {currentPlan.id === id && (
+                <span className="text-emerald-600">✓</span>
+              )}
+            </button>
+          ))}
+          <p className="border-t border-stone-100 px-4 pt-2 pb-1 text-[0.62rem] text-stone-400">
+            Dev only — no billing
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Hide Zones in bottom nav until the feature is ready (routes still work if linked). */
 const SHOW_ZONES_TAB = false
+const SHOW_INVENTORY_TAB = true
 const DEMO_MODE_STORAGE_KEY = 'elkGardenDemoMode'
 
 function NavItem({
@@ -54,7 +128,7 @@ function BottomNav() {
       <div
         className={clsx(
           'mx-auto grid gap-2',
-          SHOW_ZONES_TAB ? 'grid-cols-4' : 'grid-cols-3',
+          SHOW_ZONES_TAB || SHOW_INVENTORY_TAB ? 'grid-cols-4' : 'grid-cols-3',
           CONTENT_MAX,
         )}
       >
@@ -80,6 +154,13 @@ function BottomNav() {
           label="Tasks"
           icon={<ListChecks className="h-5 w-5" />}
         />
+        {SHOW_INVENTORY_TAB ? (
+          <NavItem
+            to="/inventory"
+            label="Inventory"
+            icon={<Package className="h-5 w-5" />}
+          />
+        ) : null}
       </div>
     </nav>
   )
@@ -163,6 +244,7 @@ export function AppShell() {
           >
             Sensor Demo: {demoModeEnabled ? 'On' : 'Off'}
           </button>
+          <PlanSwitcher />
         </div>
         <Outlet />
       </main>

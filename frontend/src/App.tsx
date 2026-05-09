@@ -7,6 +7,7 @@ import { ZoneDetailPage } from './features/zones/ZoneDetailPage'
 import { SetupFlowPage } from './features/setup/SetupFlowPage'
 import { GardenCanvasPage } from './features/canvas/GardenCanvasPage'
 import { IdeasPage } from './features/ideas/IdeasPage'
+import { InventoryPage } from './features/inventory/InventoryPage'
 import { useGarden } from './lib/useGarden'
 import { IframeHarnessPage, IframeLabPage } from './dev/iframe-lab'
 
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/canvas" element={<GardenCanvasPage />} />
         <Route path="/ideas" element={<IdeasPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
         <Route
           path="*"
           element={

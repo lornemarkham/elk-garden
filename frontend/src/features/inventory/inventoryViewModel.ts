@@ -246,7 +246,7 @@ export function getItemTotalCost(item: InventoryItem): { value: number | null; c
 /** Format a number as a currency string (e.g. "$45 CAD"). */
 export function formatCurrency(amount: number, currency = 'CAD'): string {
   const str = amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2)
-  return `$${str}\u00a0${currency}`
+  return `$${str} ${currency}`
 }
 
 export function computeFinancialSummary(items: InventoryItem[]): InventoryFinancialSummary {

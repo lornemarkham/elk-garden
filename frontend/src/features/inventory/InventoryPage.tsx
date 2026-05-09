@@ -182,7 +182,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
             'shrink-0 text-[0.72rem] font-semibold tabular-nums',
             cost.confidence === 'exact' ? 'text-stone-700' : 'text-stone-500',
           )}>
-            {cost.confidence !== 'exact' ? '≈\u00a0' : ''}{formatCurrency(cost.value, item.currency ?? 'CAD')}
+            {cost.confidence !== 'exact' ? '≈ ' : ''}{formatCurrency(cost.value, item.currency ?? 'CAD')}
           </span>
         ) : (
           <span className="shrink-0 text-[0.68rem] text-stone-400 italic">cost unknown</span>
@@ -494,7 +494,7 @@ export function InventoryPage() {
                             <span className="text-xs text-stone-700 leading-snug">{item.name}</span>
                             {cost.value !== null ? (
                               <span className="shrink-0 text-[0.68rem] tabular-nums text-stone-400">
-                                {cost.confidence !== 'exact' ? '≈\u00a0' : ''}{formatCurrency(cost.value, item.currency ?? 'CAD')}
+                                {cost.confidence !== 'exact' ? '≈ ' : ''}{formatCurrency(cost.value, item.currency ?? 'CAD')}
                               </span>
                             ) : null}
                           </li>
@@ -540,7 +540,7 @@ export function InventoryPage() {
                             </div>
                             {cost.value !== null ? (
                               <span className="shrink-0 text-[0.68rem] tabular-nums text-stone-500">
-                                ≈\u00a0{formatCurrency(cost.value, item.currency ?? 'CAD')}
+                                ≈ {formatCurrency(cost.value, item.currency ?? 'CAD')}
                               </span>
                             ) : null}
                           </li>

@@ -41,7 +41,7 @@ export function CapacityBar({ label, current, max, unit = 'items', className }: 
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-[0.72rem] text-stone-500">{label}</span>
         <span className={clsx('text-[0.72rem] font-semibold tabular-nums', countColor)}>
-          {current.toLocaleString()}\u00a0/\u00a0{max.toLocaleString()} {unit}
+          {current.toLocaleString()} / {max.toLocaleString()} {unit}
           {isAtLimit ? ' — at limit' : isNearLimit ? ' — almost full' : ''}
         </span>
       </div>

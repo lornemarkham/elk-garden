@@ -98,6 +98,15 @@ body {
   animation: task-complete-out 2.6s ease-in forwards;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Respect users who prefer larger text without breaking layout. */
 @media (prefers-reduced-motion: reduce) {
   * {

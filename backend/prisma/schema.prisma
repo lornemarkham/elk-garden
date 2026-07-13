@@ -108,3 +108,35 @@ model RowLog {
   note      String
   createdAt DateTime @default(now())
 }
+
+model SensorReading {
+
+  id              String   @id @default(uuid())
+
+  nodeId          String
+
+  zoneId          String?
+
+  batteryVoltage  Float?
+
+  solarVoltage    Float?
+
+  chargeCurrent   Float?
+
+  loadCurrent     Float?
+
+  airTempC        Float?
+
+  humidityPct     Float?
+
+  soilMoistureRaw Float?
+
+  soilTempC       Float?
+
+  receivedAt      DateTime @default(now())
+
+  @@index([zoneId, receivedAt])
+
+  @@index([nodeId, receivedAt])
+
+}

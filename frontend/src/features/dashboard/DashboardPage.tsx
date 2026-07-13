@@ -1,803 +1,376 @@
-import clsx from 'clsx'
-import { PrimaryPageIntro } from '../../components/PrimaryPageIntro'
-import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { SectionContainer } from '../../components/SectionContainer'
-import { TaskList, type TaskListItem } from '../../components/TaskList'
-import { useGarden } from '../../lib/useGarden'
-import {
-  ELK_PLAN_TASKS_KEY,
-  ensureTomatoesDemoTask,
-  loadPlanTasks,
-  savePlanTasks,
-  togglePlanTask,
-} from '../plan/planTasksStorage'
-import type { DashboardAlertSeverity } from './dashboardViewModel'
-import { getDashboardViewModel } from './dashboardViewModel'
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import type { Garden, GardenMode, GardenProfile, WeatherSummary, Zone } from '../../types'
-import type { ActivityLogEntry, GardenObservationEvent } from '../../lib/garden/GardenStore'
+import clsx from 'clsx'
+import {
+  Bird,
+  Carrot,
+  CheckCircle2,
+  Cherry,
+  Circle,
+  Citrus,
+  Cloud,
+  CloudSun,
+  Coffee,
+  Droplet,
+  Leaf,
+  Sparkles,
+  Sprout,
+  Sun,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { SectionContainer } from '../../components/SectionContainer'
+import { GardenCameraCard } from '../../components/GardenCameraCard'
+import { LiveSensorDevPanel } from '../../components/dev/LiveSensorDevPanel'
+import { TaskList, type TaskListItem } from '../../components/TaskList'
+import { HealthRing } from './HealthRing'
+import {
+  GARDEN_QUOTE,
+  PLACEHOLDER_FOCUS,
+  PLACEHOLDER_MOMENTS,
+  PLACEHOLDER_WEATHER,
+  PLACEHOLDER_ZONES,
+  effortLabel,
+  greetingForHour,
+  healthLabel,
+  moodLineForHour,
+  type PlaceholderFocusItem,
+  type PlaceholderZone,
+  type ZoneIconKey,
+} from './dashboardPlaceholder'
 
-type QuickObservationTag = 'pests' | 'stressed' | 'soil_dry'
+const GARDEN_HEALTH_SCORE = 88
 
-const quickFeedbackCopy: Record<
-  GardenObservationEvent,
-  { logged: string; duplicate: string }
-> = {
-  pests: {
-    logged: 'Logged: pests spotted',
-    duplicate: 'Already logged — task is in your list',
-  },
-  stressed: {
-    logged: 'Logged: plant stress',
-    duplicate: 'Already logged — task is in your list',
-  },
-  dry: {
-    logged: 'Logged: soil dry',
-    duplicate: 'Already logged — task is in your list',
-  },
+const ZONE_ICON: Record<ZoneIconKey, LucideIcon> = {
+  tomatoes: Cherry,
+  greens: Leaf,
+  roots: Carrot,
+  melons: Citrus,
 }
 
-function observationZoneSignal(zoneName: string, recommendation: string) {
-  if (!zoneName.includes('Tomatoes')) return null
-  if (recommendation.startsWith('Pests spotted')) return 'Pest watch'
-  if (recommendation.startsWith('Plants showing stress')) return 'Stress watch'
-  return null
+const MOMENT_ICON: Record<(typeof PLACEHOLDER_MOMENTS)[number]['icon'], LucideIcon> = {
+  droplet: Droplet,
+  sun: Sun,
+  leaf: Leaf,
+  cloud: Cloud,
 }
 
-function moistureLabel(m: Zone['moistureStatus']): string {
-  if (m === 'dry') return 'Dry'
-  if (m === 'wet') return 'Wet'
-  return 'Good'
+const BACKLOG_TASKS: TaskListItem[] = [
+  { id: 'backlog_stakes', title: 'Order more tomato stakes', completed: false },
+  { id: 'backlog_shears', title: 'Sharpen the pruning shears', completed: false },
+  { id: 'backlog_succession', title: 'Plan fall lettuce succession', completed: false },
+]
+
+const QUICK_NOTES: Array<{ id: string; label: string; loggedLabel: string }> = [
+  { id: 'pests', label: 'Saw pests', loggedLabel: 'Noted — added to tomorrow.' },
+  { id: 'stressed', label: 'Plants look stressed', loggedLabel: "Noted — keeping an eye on it." },
+  { id: 'dry', label: 'Soil feels dry', loggedLabel: 'Noted — watering moved up.' },
+]
+
+function GreetingHero() {
+  const now = new Date()
+  const hour = now.getHours()
+  const greeting = greetingForHour(hour)
+  const mood = moodLineForHour(hour, PLACEHOLDER_WEATHER)
+  const dateLabel = now.toLocaleDateString([], {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+
+  return (
+    <div className="relative mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-amber-50 via-rose-50 to-sky-100 p-6 ring-1 ring-stone-200/70 sm:mb-6 sm:p-8">
+      <div
+        className="absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-amber-200/70 to-orange-300/40 blur-2xl"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-gradient-to-br from-sky-200/60 to-emerald-200/40 blur-2xl"
+        aria-hidden="true"
+      />
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="grid h-7 w-7 place-items-center rounded-lg bg-white/80 shadow-sm ring-1 ring-stone-200">
+            <Sprout className="h-3.5 w-3.5 text-emerald-700" aria-hidden="true" />
+          </div>
+          <p className="text-sm font-semibold tracking-tight text-stone-700">{dateLabel}</p>
+        </div>
+        <h1 className="mt-3 font-serif text-4xl tracking-tight text-stone-950 sm:text-5xl">
+          {greeting}, Lorne.
+        </h1>
+        <p className="mt-2 max-w-prose text-lg italic leading-snug text-stone-700">{mood}</p>
+        <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 font-semibold text-stone-800 ring-1 ring-stone-200">
+            <CloudSun className="h-4 w-4 text-sky-700" aria-hidden="true" />
+            High {PLACEHOLDER_WEATHER.highF}° · Low {PLACEHOLDER_WEATHER.lowF}°
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 font-semibold text-stone-800 ring-1 ring-stone-200">
+            <Droplet className="h-4 w-4 text-sky-700" aria-hidden="true" />
+            {PLACEHOLDER_WEATHER.precipChancePct}% rain · watering window {PLACEHOLDER_WEATHER.wateringWindowLabel.toLowerCase()}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
 }
 
-function moistureClass(m: Zone['moistureStatus']): string {
-  if (m === 'dry') return 'text-amber-800'
-  if (m === 'wet') return 'text-sky-800'
-  return 'text-emerald-800'
+function GardenPulseCard() {
+  const watchZone = PLACEHOLDER_ZONES.find((z) => z.moistureLabel === 'Watch')
+  return (
+    <div className="mb-5 flex flex-col items-center gap-4 rounded-[1.75rem] bg-white p-5 text-center shadow-sm ring-1 ring-stone-200 sm:mb-6 sm:flex-row sm:gap-6 sm:p-6 sm:text-left">
+      <HealthRing scorePct={GARDEN_HEALTH_SCORE} label={healthLabel(GARDEN_HEALTH_SCORE)} />
+      <div>
+        <p className="text-lg font-semibold leading-snug text-stone-950">
+          Every bed checked in steady this morning.
+          {watchZone ? ` Just keep an eye on the ${watchZone.name.toLowerCase()} today.` : ''}
+        </p>
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-950 ring-1 ring-emerald-100">
+          <Coffee className="h-4 w-4" aria-hidden="true" />
+          {effortLabel(GARDEN_HEALTH_SCORE)}
+        </p>
+      </div>
+    </div>
+  )
 }
 
-function alertRowClass(severity: DashboardAlertSeverity): string {
-  switch (severity) {
-    case 'critical':
-      return 'border-l-[5px] border-l-rose-500 bg-rose-50/55 ring-rose-200/85'
-    case 'urgent':
-      return 'border-l-[5px] border-l-pink-500 bg-pink-50/70 ring-pink-200/85'
-    case 'watch':
-      return 'border-l-[5px] border-l-amber-400 bg-amber-50/85 ring-amber-200/85'
-    case 'info':
-      return 'border-l-[5px] border-l-emerald-400 bg-emerald-50/70 ring-emerald-200/90'
-  }
+function FocusItemRow({
+  item,
+  completed,
+  justCompleted,
+  onToggle,
+}: {
+  item: PlaceholderFocusItem
+  completed: boolean
+  justCompleted: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={completed}
+      className={clsx(
+        'flex w-full items-start gap-3 rounded-2xl p-4 text-left shadow-sm ring-1 transition',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
+        completed ? 'bg-emerald-50/50 ring-emerald-200' : 'bg-white ring-stone-200 hover:bg-stone-50',
+        justCompleted && 'animate-task-complete-pulse ring-emerald-300',
+      )}
+    >
+      <span className="mt-0.5 shrink-0">
+        {completed ? (
+          <CheckCircle2
+            className={clsx('h-7 w-7 text-emerald-700', justCompleted && 'animate-task-check-pop')}
+            aria-hidden="true"
+          />
+        ) : (
+          <Circle className="h-7 w-7 text-stone-400" aria-hidden="true" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-start justify-between gap-2">
+          <span className={clsx('font-semibold leading-snug', completed ? 'text-stone-700' : 'text-stone-950')}>
+            {item.title}
+          </span>
+          <span className="shrink-0 text-xs font-semibold text-stone-500">{item.minutesLabel}</span>
+        </span>
+        <span className="mt-1 block text-sm leading-relaxed text-stone-600">{item.why}</span>
+      </span>
+    </button>
+  )
 }
 
-function morningAlertClass(tone: 'moisture' | 'heat' | 'info') {
-  if (tone === 'heat') return 'bg-amber-50 text-amber-950 ring-amber-100'
-  if (tone === 'moisture') return 'bg-sky-50 text-sky-950 ring-sky-100'
-  return 'bg-emerald-50 text-emerald-950 ring-emerald-100'
+function ZoneGalleryCard({ zone }: { zone: PlaceholderZone }) {
+  const Icon = ZONE_ICON[zone.icon]
+  const isWatch = zone.moistureLabel === 'Watch'
+  return (
+    <NavLink
+      to={`/zones/${zone.id}`}
+      className="flex w-[72%] shrink-0 snap-start flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50 sm:w-60"
+    >
+      <div className={clsx('flex items-center gap-2.5 bg-gradient-to-br px-4 py-3.5', zone.gradient)}>
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/80 shadow-sm">
+          <Icon className="h-4 w-4 text-stone-800" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-bold leading-snug text-stone-950">{zone.name}</p>
+          <p className="truncate text-xs text-stone-700/80">{zone.cropSummary}</p>
+        </div>
+      </div>
+      <div className="flex-1 space-y-3 p-4">
+        <p className="text-sm leading-relaxed text-stone-700">{zone.statusLine}</p>
+        <div>
+          <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-stone-500">
+            <span>Moisture</span>
+            <span className={isWatch ? 'text-amber-700' : 'text-emerald-700'}>{zone.moistureLabel}</span>
+          </div>
+          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-stone-100">
+            <div
+              className={clsx('h-full rounded-full', isWatch ? 'bg-amber-400' : 'bg-emerald-500')}
+              style={{ width: `${zone.moisturePct}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </NavLink>
+  )
 }
 
-function trendClass(trend: string) {
-  if (trend === 'Moisture falling') return 'text-amber-800'
-  if (trend === 'Recovering after watering') return 'text-sky-800'
-  return 'text-emerald-800'
+function MomentsTimeline() {
+  return (
+    <ol className="space-y-2">
+      {PLACEHOLDER_MOMENTS.map((m) => {
+        const Icon = MOMENT_ICON[m.icon]
+        return (
+          <li
+            key={m.id}
+            className="flex items-start gap-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-stone-200"
+          >
+            <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-stone-50 ring-1 ring-stone-100">
+              <Icon className="h-4 w-4 text-stone-600" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm leading-relaxed text-stone-800">{m.message}</span>
+              <span className="mt-0.5 block text-xs text-stone-500">{m.time}</span>
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
 }
 
 export function DashboardPage() {
-  const { garden, weather, profile, isLoading, error, activityLog } = useGarden()
+  const [focusCompleted, setFocusCompleted] = useState<Record<string, boolean>>({})
+  const [focusPulseId, setFocusPulseId] = useState<string | null>(null)
+  const [backlog, setBacklog] = useState<TaskListItem[]>(BACKLOG_TASKS)
+  const [backlogPulseIds, setBacklogPulseIds] = useState<string[]>([])
+  const [loggedNoteId, setLoggedNoteId] = useState<string | null>(null)
+  const [noteFeedback, setNoteFeedback] = useState<string | null>(null)
 
-  if (isLoading) {
-    return (
-      <div className="py-6">
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <p className="text-base font-semibold text-stone-900">
-            Getting things ready…
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-stone-600">
-            One moment while we check today’s garden picture.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !garden) {
-    return (
-      <div className="py-6">
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <div className="flex items-start gap-3">
-            <div
-              className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-50 ring-1 ring-rose-200"
-              aria-hidden="true"
-            >
-              <AlertTriangle className="h-5 w-5 text-rose-900" />
-            </div>
-            <div>
-              <p className="text-base font-semibold text-stone-900">
-                We hit a small snag
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-stone-600">
-                {error ?? 'Please try again.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!weather) {
-    return (
-      <div className="py-6">
-        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200">
-          <p className="text-base font-semibold text-stone-900">
-            Getting today’s weather…
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-stone-600">
-            One moment.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <DashboardContent
-      garden={garden}
-      weather={weather}
-      profile={profile}
-      activityLog={activityLog}
-    />
-  )
-}
-
-function DashboardContent({
-  garden,
-  weather,
-  profile,
-  activityLog,
-}: {
-  garden: Garden
-  weather: WeatherSummary
-  profile: GardenProfile | null
-  activityLog: ActivityLogEntry[]
-}) {
-  const {
-    gardenMode,
-    setGardenMode,
-    toggleTask,
-    simulateTomato24Hours,
-    reportObservation,
-  } = useGarden()
-
-  const mode: GardenMode = gardenMode
-
-  const vm = useMemo(
-    () => getDashboardViewModel(garden, weather, profile, mode),
-    [garden, weather, profile, mode],
-  )
-
-  const todayRecommendations = useMemo(
-    () => vm.recommendations.slice(0, 3),
-    [vm.recommendations],
-  )
-
-  const [planTasks, setPlanTasks] = useState(loadPlanTasks)
-  const [taskFeedback, setTaskFeedback] = useState<string | null>(null)
-  const [completedGhosts, setCompletedGhosts] = useState<
-    Record<string, TaskListItem>
-  >({})
-  const [completedPulseIds, setCompletedPulseIds] = useState<string[]>([])
-  const [updatedZoneId, setUpdatedZoneId] = useState<string | null>(null)
-  const [quickLogToast, setQuickLogToast] = useState<string | null>(null)
-  const [loggedQuickTag, setLoggedQuickTag] = useState<string | null>(null)
-  const [quickInlineFeedback, setQuickInlineFeedback] = useState<string | null>(
-    null,
-  )
-
-  useEffect(() => {
-    const sync = () => setPlanTasks(loadPlanTasks())
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === ELK_PLAN_TASKS_KEY) sync()
-    }
-    window.addEventListener('storage', onStorage)
-    window.addEventListener('focus', sync)
-    return () => {
-      window.removeEventListener('storage', onStorage)
-      window.removeEventListener('focus', sync)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!taskFeedback) return
-    const t = window.setTimeout(() => setTaskFeedback(null), 2200)
-    return () => window.clearTimeout(t)
-  }, [taskFeedback])
-
-  useEffect(() => {
-    if (!quickLogToast) return
-    const t = window.setTimeout(() => setQuickLogToast(null), 1600)
-    return () => window.clearTimeout(t)
-  }, [quickLogToast])
-
-  useEffect(() => {
-    if (!quickInlineFeedback) return
-    const t = window.setTimeout(() => setQuickInlineFeedback(null), 2400)
-    return () => window.clearTimeout(t)
-  }, [quickInlineFeedback])
-
-  useEffect(() => {
-    if (!loggedQuickTag) return
-    const t = window.setTimeout(() => setLoggedQuickTag(null), 1500)
-    return () => window.clearTimeout(t)
-  }, [loggedQuickTag])
-
-  const taskListItems = useMemo(() => {
-    const forGardenToday = planTasks.filter(
-      (t) =>
-        t.gardenId === garden.id &&
-        !t.completed &&
-        (t.section === 'today' || t.section === undefined),
-    )
-    const gardenTasks = vm.tasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      supportiveNote: t.supportiveNote,
-      completed: t.completed,
-    }))
-    const planTaskItems = forGardenToday.slice(0, 5).map((t) => ({
-      id: t.id,
-      title: t.title,
-      completed: t.completed,
-    }))
-    const ghostItems = Object.values(completedGhosts)
-    const seen = new Set<string>()
-    return [...ghostItems, ...gardenTasks, ...planTaskItems].filter((t) => {
-      if (seen.has(t.id)) return false
-      seen.add(t.id)
-      return true
-    })
-  }, [planTasks, garden.id, vm.tasks, completedGhosts])
-
-  const showCompletionFeedback = ({
-    item,
-    message,
-    zoneId,
-    exitTask,
-  }: {
-    item: TaskListItem
-    message: string
-    zoneId?: string | null
-    exitTask: boolean
-  }) => {
-    setTaskFeedback(message)
-    setCompletedPulseIds((prev) => [...new Set([...prev, item.id])])
-    if (exitTask) {
-      setCompletedGhosts((prev) => ({
-        ...prev,
-        [item.id]: { ...item, completed: true },
-      }))
-    }
-    if (zoneId) setUpdatedZoneId(zoneId)
-
-    window.setTimeout(() => {
-      setCompletedPulseIds((prev) => prev.filter((id) => id !== item.id))
-      if (zoneId) setUpdatedZoneId((prev) => (prev === zoneId ? null : prev))
-    }, 1200)
-
-    if (exitTask) {
-      window.setTimeout(() => {
-        setCompletedGhosts((prev) => {
-          const { [item.id]: _done, ...rest } = prev
-          return rest
-        })
-      }, 2600)
-    }
-  }
-
-  const onTaskToggle = (id: string) => {
-    const fromPlan = planTasks.some(
-      (t) => t.id === id && t.gardenId === garden.id,
-    )
-    const visibleTask = taskListItems.find((t) => t.id === id)
-    if (vm.tasks.some((t) => t.id === id)) {
-      const result = toggleTask(id)
-      if (fromPlan) {
-        setPlanTasks((prev) => {
-          const next = ensureTomatoesDemoTask(togglePlanTask(prev, id), true)
-          savePlanTasks(next)
-          return next
-        })
+  const toggleFocus = (id: string) => {
+    setFocusCompleted((prev) => {
+      const nowCompleted = !prev[id]
+      if (nowCompleted) {
+        setFocusPulseId(id)
+        window.setTimeout(() => setFocusPulseId((p) => (p === id ? null : p)), 1200)
       }
-      if (result?.completed && visibleTask) {
-        showCompletionFeedback({
-          item: visibleTask,
-          message: result.message,
-          zoneId: result.log.zoneId,
-          exitTask:
-            result.log.taskType === 'water' ||
-            result.log.taskType === 'hold-water',
-        })
-      } else if (result) {
-        setTaskFeedback(result.message)
-      }
-    } else if (fromPlan) {
-      const planTask = planTasks.find(
-        (t) => t.id === id && t.gardenId === garden.id,
-      )
-      setPlanTasks((prev) => {
-        const next = togglePlanTask(prev, id)
-        savePlanTasks(next)
-        return next
-      })
-      if (planTask && !planTask.completed && visibleTask) {
-        const message = `${planTask.title} done`
-        console.info('[elk-garden] task completed', {
-          zoneId: null,
-          taskType: 'other',
-          timestamp: new Date().toISOString(),
-          previousState: { taskCompleted: planTask.completed },
-          newState: { taskCompleted: true },
-        })
-        showCompletionFeedback({
-          item: visibleTask,
-          message,
-          zoneId: null,
-          exitTask: true,
-        })
-      }
-    }
-  }
-
-  const onQuickInput = (
-    label: string,
-    tag: QuickObservationTag,
-    event: GardenObservationEvent,
-  ) => {
-    console.info('[elk-garden] observation', { tag, label })
-    const result = reportObservation(event)
-    setLoggedQuickTag(tag)
-    setQuickInlineFeedback(
-      result.added
-        ? quickFeedbackCopy[event].logged
-        : quickFeedbackCopy[event].duplicate,
-    )
-    setQuickLogToast(result.added ? quickFeedbackCopy[event].logged : quickFeedbackCopy[event].duplicate)
-  }
-
-  const onSimulate24Hours = () => {
-    simulateTomato24Hours()
-    setPlanTasks((prev) => {
-      const next = ensureTomatoesDemoTask(prev, true)
-      savePlanTasks(next)
-      return next
+      return { ...prev, [id]: nowCompleted }
     })
   }
+
+  const toggleBacklog = (id: string) => {
+    setBacklog((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)))
+    setBacklogPulseIds((prev) => [...new Set([...prev, id])])
+    window.setTimeout(() => setBacklogPulseIds((prev) => prev.filter((x) => x !== id)), 1200)
+  }
+
+  const onQuickNote = (note: (typeof QUICK_NOTES)[number]) => {
+    setLoggedNoteId(note.id)
+    setNoteFeedback(note.loggedLabel)
+    window.setTimeout(() => setLoggedNoteId((prev) => (prev === note.id ? null : prev)), 1600)
+  }
+
+  useEffect(() => {
+    if (!noteFeedback) return
+    const t = window.setTimeout(() => setNoteFeedback(null), 2400)
+    return () => window.clearTimeout(t)
+  }, [noteFeedback])
 
   return (
     <div className="pt-2">
-      <PrimaryPageIntro
-        title="Dashboard"
-        description="Skim alerts and today’s priorities first — the rest can wait."
-      />
+      <LiveSensorDevPanel />
+      <GreetingHero />
+      <GardenPulseCard />
 
-      {taskFeedback ? (
-        <div
-          className="mb-5 flex items-center gap-3 rounded-2xl bg-emerald-50/80 px-4 py-3 text-sm font-bold text-emerald-950 shadow-sm ring-1 ring-emerald-200 animate-task-complete-pulse sm:text-base"
-          role="status"
-          aria-live="polite"
-        >
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700 animate-task-check-pop" />
-          <span>{taskFeedback}</span>
+      <SectionContainer title="Today, gently" subtitle="Three small things — nothing urgent.">
+        <div className="space-y-2.5">
+          {PLACEHOLDER_FOCUS.map((item) => (
+            <FocusItemRow
+              key={item.id}
+              item={item}
+              completed={!!focusCompleted[item.id]}
+              justCompleted={focusPulseId === item.id}
+              onToggle={() => toggleFocus(item.id)}
+            />
+          ))}
         </div>
-      ) : null}
+      </SectionContainer>
 
-      <SectionContainer
-        title="Morning Garden Status"
-        subtitle="Your garden checked itself this morning."
-      >
-        <div className="rounded-[1.75rem] bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:p-5">
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-            <div>
-              <p className="text-2xl font-bold tracking-tight text-stone-950 sm:text-3xl">
-                Garden health: {vm.morningStatus.healthScore}%
-              </p>
-              <p className="mt-2 text-base leading-relaxed text-stone-700">
-                {vm.morningStatus.headline}
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-stone-600">
-                {vm.morningStatus.weatherSummary}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-950 ring-1 ring-emerald-100">
-              {vm.morningStatus.effortLevel}
-            </div>
+      <SectionContainer title="Your beds" subtitle="Tap a bed for the full picture.">
+        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          {PLACEHOLDER_ZONES.map((zone) => (
+            <ZoneGalleryCard key={zone.id} zone={zone} />
+          ))}
+        </div>
+      </SectionContainer>
+
+      <SectionContainer title="A quiet moment" subtitle="From last night's camera.">
+        <div className="flex items-start gap-3 rounded-2xl bg-gradient-to-br from-violet-50 to-sky-50 p-4 ring-1 ring-violet-100">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white shadow-sm ring-1 ring-violet-100">
+            <Bird className="h-5 w-5 text-violet-700" aria-hidden="true" />
           </div>
-
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {vm.morningStatus.alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={clsx(
-                  'rounded-2xl px-4 py-3 text-sm font-semibold leading-snug ring-1',
-                  morningAlertClass(alert.tone),
-                )}
-              >
-                {alert.label}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-2xl bg-stone-50 px-4 py-3 ring-1 ring-stone-200">
-            <p className="text-sm font-bold text-stone-950">
-              Watering guidance
+          <div>
+            <p className="font-semibold leading-snug text-stone-950">
+              A little visitor passed through overnight
             </p>
             <p className="mt-1 text-sm leading-relaxed text-stone-700">
-              {vm.morningStatus.wateringGuidance}
+              Movement near the tomato bed around 2:10 AM — nothing seems disturbed.
             </p>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            {vm.morningStatus.topRecommendations.map((r) => (
-              <div
-                key={r.id}
-                className="rounded-2xl bg-white px-4 py-3 ring-1 ring-stone-200"
-              >
-                <p className="text-base font-bold leading-snug text-stone-950">
-                  {r.title}
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-stone-700">
-                  {r.why}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </SectionContainer>
-
-      <div className="mb-5 sm:mb-6">
-        <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stone-200 sm:p-4">
-          <p className="text-sm font-semibold text-stone-900">Garden mode</p>
-          <div
-            className="mt-2 grid grid-cols-2 gap-2 rounded-2xl bg-stone-100 p-1.5 ring-1 ring-stone-200 sm:mt-3 sm:p-2"
-            role="group"
-            aria-label="Garden mode"
-          >
-            <button
-              type="button"
-              onClick={() => setGardenMode('calm_supportive')}
-              className={
-                mode === 'calm_supportive'
-                  ? 'rounded-2xl bg-white px-3 py-2.5 text-sm font-semibold text-stone-950 shadow-sm ring-1 ring-stone-200 sm:px-4 sm:py-3 sm:text-base'
-                  : 'rounded-2xl px-3 py-2.5 text-sm font-semibold text-stone-700 hover:bg-white/70 sm:px-4 sm:py-3 sm:text-base'
-              }
-              aria-pressed={mode === 'calm_supportive'}
+            <a
+              href="#garden-camera"
+              className="mt-2 inline-block text-sm font-semibold text-violet-800 underline-offset-2 hover:underline"
             >
-              Kathy 🌿
-            </button>
-            <button
-              type="button"
-              onClick={() => setGardenMode('production')}
-              className={
-                mode === 'production'
-                  ? 'rounded-2xl bg-white px-3 py-2.5 text-sm font-semibold text-stone-950 shadow-sm ring-1 ring-stone-200 sm:px-4 sm:py-3 sm:text-base'
-                  : 'rounded-2xl px-3 py-2.5 text-sm font-semibold text-stone-700 hover:bg-white/70 sm:px-4 sm:py-3 sm:text-base'
-              }
-              aria-pressed={mode === 'production'}
-            >
-              Lorne 🔧
-            </button>
+              Peek at the camera ↓
+            </a>
           </div>
-        </div>
-      </div>
-
-      <section className="pb-6 sm:pb-8">
-        <h2 className="text-xs font-bold uppercase tracking-wide text-stone-500">
-          Alerts
-        </h2>
-        {vm.alerts.length === 0 ? (
-          <div className="mt-2 rounded-2xl bg-stone-50/80 px-4 py-3 text-sm leading-relaxed text-stone-600 ring-1 ring-stone-200/80">
-            <p className="font-semibold text-stone-800">
-              Waiting for sensor feedback.
-            </p>
-            <p className="mt-1">
-              This prototype demonstrates how future garden signals can create
-              real-time alerts, recommendations, and tasks. Signals can come
-              from moisture sensors, cameras, weather feeds, and human garden
-              observations. Humans are sensors too.
-            </p>
-          </div>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {vm.alerts.map((a) => (
-              <li
-                key={a.id}
-                className={clsx(
-                  'rounded-r-2xl py-3 pl-4 pr-4 text-sm font-bold leading-snug text-stone-950 ring-1 sm:text-base',
-                  alertRowClass(a.severity),
-                )}
-              >
-                {a.message}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <SectionContainer
-        title="Today"
-        subtitle="Sensor-driven recommendations and tasks will show up here when a signal needs attention."
-      >
-        {todayRecommendations.length === 0 ? (
-          <p className="rounded-2xl bg-white px-4 py-3 text-sm font-medium leading-relaxed text-stone-600 shadow-sm ring-1 ring-stone-200">
-            Sensor-driven recommendations will appear here.
-          </p>
-        ) : (
-          <div className="space-y-2 sm:space-y-3">
-            {todayRecommendations.map((r) => (
-              <details
-                key={r.id}
-                className="rounded-2xl bg-white shadow-sm ring-1 ring-stone-200"
-              >
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
-                  <span className="text-left text-base font-bold leading-snug text-stone-950">
-                    {r.title}
-                  </span>
-                  <span className="shrink-0 text-sm font-semibold text-stone-600">
-                    {r.estimatedTimeLabel}
-                  </span>
-                </summary>
-                <div className="space-y-3 border-t border-stone-100 px-4 pb-4 pt-3 text-sm leading-relaxed text-stone-700">
-                  <p>{r.why}</p>
-                  <p className="font-semibold text-stone-900">{r.nextStep}</p>
-                  {r.expanders?.length ? (
-                    <div className="space-y-2 pt-1">
-                      {r.expanders.map((e) => (
-                        <details
-                          key={e.title}
-                          className="rounded-2xl bg-stone-50/80 p-3 ring-1 ring-stone-200"
-                        >
-                          <summary className="cursor-pointer text-sm font-semibold text-stone-900 [&::-webkit-details-marker]:hidden">
-                            {e.title}
-                          </summary>
-                          <p className="mt-2 text-sm leading-relaxed text-stone-700">
-                            {e.body}
-                          </p>
-                        </details>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              </details>
-            ))}
-          </div>
-        )}
-      </SectionContainer>
-
-      <SectionContainer title="Garden zone status" subtitle="Believable local sensor trends for each bed. Tap a zone for detail.">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {vm.zones.map((z) => {
-              const zoneSignal = observationZoneSignal(z.name, z.recommendation)
-              return (
-                <NavLink
-                  key={z.id}
-                  to={`/zones/${z.id}`}
-                  className={clsx(
-                    'flex flex-col gap-3 rounded-2xl bg-white px-4 py-4 shadow-sm ring-1 ring-stone-200 transition hover:bg-stone-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
-                    updatedZoneId === z.id &&
-                      'animate-task-complete-pulse bg-emerald-50/70 ring-emerald-300',
-                  )}
-                >
-                  <span className="flex items-start justify-between gap-3">
-                    <span>
-                      <span className="block font-bold leading-snug text-stone-950">
-                        {z.name}
-                      </span>
-                      <span className="mt-1 block text-sm text-stone-600">
-                        Crops: {z.cropSummary}
-                      </span>
-                    </span>
-                    <span className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-950 ring-1 ring-emerald-100">
-                      {z.healthScore}%
-                    </span>
-                  </span>
-
-                  <span className="grid grid-cols-2 gap-2 text-sm">
-                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-                        Moisture
-                      </span>
-                      <span className={clsx('font-bold', moistureClass(z.moistureStatus))}>
-                        {z.moisturePct}%
-                      </span>
-                    </span>
-                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-                        Sunlight
-                      </span>
-                      <span className="font-bold text-stone-900">{z.sunlightPct}%</span>
-                    </span>
-                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-                        Temp
-                      </span>
-                      <span className="font-bold text-stone-900">{z.temperatureF}F</span>
-                    </span>
-                    <span className="rounded-2xl bg-stone-50 px-3 py-2 ring-1 ring-stone-100">
-                      <span className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-                        Humidity
-                      </span>
-                      <span className="font-bold text-stone-900">{z.humidityPct}%</span>
-                    </span>
-                  </span>
-
-                  <span className="text-sm font-bold leading-snug text-stone-800">
-                    Trend:{' '}
-                    <span className={clsx(trendClass(z.trend))}>{z.trend}</span>
-                    {zoneSignal ? (
-                      <>
-                        <span className="font-normal text-stone-400"> • </span>
-                        <span className="text-amber-900">{zoneSignal}</span>
-                      </>
-                    ) : null}
-                  </span>
-
-                  <span className="rounded-2xl bg-stone-50 px-3 py-2 text-sm leading-relaxed text-stone-700 ring-1 ring-stone-100">
-                    <span className="font-bold text-stone-950">Recommendation: </span>
-                    {z.health === 'watch' || z.health === 'action' ? (
-                      <>{z.recommendation}</>
-                    ) : (
-                      <>{z.recommendedAction}</>
-                    )}
-                  </span>
-                  <span className="sr-only">
-                    {moistureLabel(z.moistureStatus)}
-                    </span>
-                </NavLink>
-              )
-          })}
         </div>
       </SectionContainer>
 
-      <SectionContainer
-        title="All tasks"
-        subtitle="Backlog and reminders — nothing here is automatically urgent."
-      >
-        <div className="sr-only" role="status" aria-live="polite">
-          {taskFeedback ?? ''}
-        </div>
-        {taskListItems.length === 0 ? (
-          <p className="rounded-2xl bg-white px-4 py-3 text-sm font-medium leading-relaxed text-stone-600 shadow-sm ring-1 ring-stone-200">
-            No sensor-created tasks yet. Use the Fake Sensor Panel to simulate
-            garden activity.
-          </p>
-        ) : (
-          <TaskList
-            items={taskListItems}
-            onToggle={onTaskToggle}
-            completedPulseIds={completedPulseIds}
-            exitingTaskIds={Object.keys(completedGhosts)}
-          />
-        )}
-      </SectionContainer>
-
-      <SectionContainer title="Report something" subtitle="What did you notice?">
-        <div className="sr-only" role="status" aria-live="polite">
-          {quickLogToast ?? ''}
-        </div>
+      <SectionContainer title="Tell the garden something" subtitle="A quick note can become tomorrow's task.">
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onQuickInput('Saw pests', 'pests', 'pests')}
-            className={clsx(
-              'rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
-              loggedQuickTag === 'pests'
-                ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
-                : 'bg-white text-stone-900 ring-stone-200 hover:bg-stone-50',
-            )}
-          >
-            {loggedQuickTag === 'pests' ? '✓ Logged' : 'Saw pests'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onQuickInput('Plants stressed', 'stressed', 'stressed')}
-            className={clsx(
-              'rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
-              loggedQuickTag === 'stressed'
-                ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
-                : 'bg-white text-stone-900 ring-stone-200 hover:bg-stone-50',
-            )}
-          >
-            {loggedQuickTag === 'stressed' ? '✓ Logged' : 'Plants stressed'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onQuickInput('Soil dry', 'soil_dry', 'dry')}
-            className={clsx(
-              'rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
-              loggedQuickTag === 'soil_dry'
-                ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
-                : 'bg-white text-stone-900 ring-stone-200 hover:bg-stone-50',
-            )}
-          >
-            {loggedQuickTag === 'soil_dry' ? '✓ Logged' : 'Soil dry'}
-          </button>
+          {QUICK_NOTES.map((note) => (
+            <button
+              key={note.id}
+              type="button"
+              onClick={() => onQuickNote(note)}
+              className={clsx(
+                'rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50',
+                loggedNoteId === note.id
+                  ? 'bg-emerald-50 text-emerald-950 ring-emerald-200'
+                  : 'bg-white text-stone-900 ring-stone-200 hover:bg-stone-50',
+              )}
+            >
+              {loggedNoteId === note.id ? '✓ Noted' : note.label}
+            </button>
+          ))}
         </div>
-        {quickInlineFeedback ? (
+        {noteFeedback ? (
           <p
             className="mt-3 rounded-2xl bg-emerald-50/70 px-4 py-2.5 text-sm font-semibold text-emerald-950 ring-1 ring-emerald-200"
             role="status"
           >
-            {quickInlineFeedback}
+            {noteFeedback}
           </p>
         ) : null}
-        <button
-          type="button"
-          onClick={onSimulate24Hours}
-          className="mt-3 rounded-2xl bg-stone-100 px-4 py-2.5 text-xs font-semibold text-stone-700 ring-1 ring-stone-200 hover:bg-stone-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50"
-        >
-          Dev test: simulate 24h
-        </button>
       </SectionContainer>
 
-      {/* Garden Activity Feed */}
-      {activityLog.length > 0 ? (
-        <SectionContainer
-          title="Garden Activity"
-          subtitle="Signals flowing into your garden system."
-        >
-          <ol className="grid gap-2">
-            {activityLog.slice(0, 10).map((entry) => (
-              <li
-                key={entry.id}
-                className={clsx(
-                  'flex items-start gap-3 rounded-2xl px-4 py-3 ring-1',
-                  entry.direction === 'positive'
-                    ? 'bg-emerald-50/60 ring-emerald-100'
-                    : 'bg-white ring-stone-200',
-                )}
-              >
-                <span
-                  className={clsx(
-                    'mt-0.5 shrink-0 text-sm font-bold',
-                    entry.direction === 'positive'
-                      ? 'text-emerald-600'
-                      : 'text-amber-600',
-                  )}
-                  aria-hidden="true"
-                >
-                  {entry.direction === 'positive' ? '↑' : '↓'}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold leading-snug text-stone-900">
-                    {entry.message}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-stone-500">
-                    {new Date(entry.capturedAtISO).toLocaleTimeString([], {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                    {' · '}
-                    {entry.source === 'arduino'
-                      ? 'Sensor'
-                      : entry.source === 'camera'
-                        ? 'Camera'
-                        : entry.source === 'weather'
-                          ? 'Weather'
-                          : 'You'}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ol>
-          <p className="mt-3 text-xs text-stone-400 italic">
-            Signals from sensors, weather, camera, and human observations flow here.
-          </p>
-        </SectionContainer>
-      ) : null}
+      <SectionContainer title="This morning, so far" subtitle="A few signals from the garden.">
+        <MomentsTimeline />
+      </SectionContainer>
 
-      {/*
-        "View insights & full detail" — hidden until the full insights experience ships.
-      */}
+      <SectionContainer title="Garden Camera" subtitle="Peek into what's happening outside.">
+        <div id="garden-camera">
+          <GardenCameraCard />
+        </div>
+      </SectionContainer>
+
+      <SectionContainer title="Everything else" subtitle="No rush — these can wait.">
+        <TaskList items={backlog} onToggle={toggleBacklog} completedPulseIds={backlogPulseIds} />
+      </SectionContainer>
+
+      <p className="mb-2 flex items-center justify-center gap-1.5 pb-6 text-center text-sm italic text-stone-400">
+        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        {GARDEN_QUOTE}
+      </p>
     </div>
   )
 }

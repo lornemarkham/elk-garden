@@ -10,14 +10,16 @@ import { IdeasPage } from './features/ideas/IdeasPage'
 import { InventoryPage } from './features/inventory/InventoryPage'
 import { useGarden } from './lib/useGarden'
 import { IframeHarnessPage, IframeLabPage } from './dev/iframe-lab'
+import { GardenCameraLabPage } from './features/lab/GardenCameraLabPage'
 
 export default function App() {
   const location = useLocation()
   const { profile, isLoading } = useGarden()
   const devIframeLab =
     import.meta.env.DEV && (location.pathname === '/dev/iframe-lab' || location.pathname === '/dev/iframe-harness')
+  const isGardenCameraLab = location.pathname === '/lab/garden-camera'
 
-  if (isLoading && !devIframeLab) {
+  if (isLoading && !devIframeLab && !isGardenCameraLab) {
     return (
       <div className="min-h-dvh bg-stone-50">
         <div className="mx-auto max-w-[720px] px-4 py-10 sm:px-5">
@@ -39,6 +41,7 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/lab/garden-camera" element={<GardenCameraLabPage />} />
       {import.meta.env.DEV ? (
         <>
           <Route path="/dev/iframe-lab" element={<IframeLabPage />} />

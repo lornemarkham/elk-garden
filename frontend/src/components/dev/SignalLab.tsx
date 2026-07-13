@@ -1,7 +1,20 @@
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
+import { useApiTelemetryControls } from '../../lib/api/useApiTelemetryControls'
 import { useGardenStore } from '../../lib/garden/GardenStore'
 import type { GardenSignalEvent, GardenSignalKind } from '../../lib/garden/sensorIngestion'
+import {
+  SIGNAL_LAB_EDUCATION_NOTE,
+  SIGNAL_MIX_CATEGORY_LABEL,
+  SIGNAL_SOURCE_LABEL,
+  setSignalMixCategory,
+  type SignalMixCategory,
+  type SignalSourceKind,
+} from '../../lib/signalLab/signalLabMix'
+import { useSignalLabMix } from '../../lib/signalLab/useSignalLabMix'
+import { SignalLabApiTelemetry } from './SignalLabApiTelemetry'
+import { SignalLabWeather } from './SignalLabWeather'
+import { useWeatherControls } from '../../lib/api/useWeatherControls'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,6 +32,16 @@ type SignalButton = {
 }
 
 type TabId = 'sensors' | 'weather' | 'camera' | 'human'
+
+const TAB_MIX_META: Record<
+  TabId,
+  { category: SignalMixCategory; sourceOnFire: SignalSourceKind }
+> = {
+  sensors: { category: 'moisture', sourceOnFire: 'manual-demo' },
+  weather: { category: 'weather', sourceOnFire: 'manual-demo' },
+  camera: { category: 'camera', sourceOnFire: 'simulated' },
+  human: { category: 'human', sourceOnFire: 'manual-demo' },
+}
 
 type TabDef = {
   id: TabId
@@ -317,7 +340,29 @@ function createSignalEvent(tab: TabDef, signal: SignalButton): GardenSignalEvent
 // Component
 // ---------------------------------------------------------------------------
 
+function CurrentSignalMix() {
+  const mix = useSignalLabMix()
+  const categories = Object.keys(SIGNAL_MIX_CATEGORY_LABEL) as SignalMixCategory[]
+  return (
+    <div className="rounded-xl bg-stone-50 px-2.5 py-2 ring-1 ring-stone-200">
+      <p className="text-[0.6rem] font-bold uppercase tracking-wider text-stone-500">
+        Current signal mix
+      </p>
+      <ul className="mt-1.5 space-y-1">
+        {categories.map((key) => (
+          <li key={key} className="flex justify-between gap-2 text-[0.65rem]">
+            <span className="text-stone-600">{SIGNAL_MIX_CATEGORY_LABEL[key]}</span>
+            <span className="font-semibold text-stone-900">{SIGNAL_SOURCE_LABEL[mix[key]]}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export function SignalLab({ enabled }: { enabled: boolean }) {
+  const apiTelemetry = useApiTelemetryControls()
+  const weatherControls = useWeatherControls()
   const { garden, ingestSignal, activityLog, resetGarden, advanceTime, clearActivityLog } =
     useGardenStore()
 
@@ -339,10 +384,14 @@ export function SignalLab({ enabled }: { enabled: boolean }) {
 
   const sendSignal = (signal: SignalButton) => {
     const key = `${activeTab}-${signal.zoneId ?? 'garden'}-${signal.kind}`
+    const meta = TAB_MIX_META[activeTab]
+    setSignalMixCategory(meta.category, meta.sourceOnFire)
     const event = createSignalEvent(currentTab, signal)
     ingestSignal(event)
     setLastFiredKey(key)
   }
+
+  const activeSource = SIGNAL_SOURCE_LABEL[TAB_MIX_META[activeTab].sourceOnFire]
 
   const handleReset = async () => {
     setIsResetting(true)
@@ -353,12 +402,12 @@ export function SignalLab({ enabled }: { enabled: boolean }) {
   const recentActivity = activityLog.slice(0, 5)
 
   return (
-    <aside className="fixed bottom-[6.25rem] right-3 z-40 w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl bg-white/97 text-xs shadow-xl ring-1 ring-stone-200 backdrop-blur sm:bottom-auto sm:top-20">
+    <aside className="fixed bottom-20 right-3 z-40 flex w-[min(22rem,calc(100vw-1.5rem))] max-h-[min(34rem,calc(100vh-5.5rem))] flex-col overflow-hidden rounded-2xl bg-white/97 text-xs shadow-xl ring-1 ring-stone-200 backdrop-blur sm:bottom-auto sm:right-4 sm:top-12 sm:max-h-[calc(100vh-4.5rem)]">
       {/* Header */}
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-start gap-3 rounded-2xl p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        className="flex w-full shrink-0 items-start gap-3 rounded-t-2xl p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
         aria-expanded={expanded}
       >
         <span className="flex-1 min-w-0">
@@ -369,7 +418,7 @@ export function SignalLab({ enabled }: { enabled: boolean }) {
             </span>
           </span>
           <span className="mt-0.5 block text-[0.68rem] leading-snug text-stone-500">
-            Signals simulate future sensor, weather, camera, and human garden events.
+            Unified input center — manual demos + API telemetry step-through.
           </span>
         </span>
         <span className="shrink-0 rounded-full bg-stone-100 px-2 py-1 text-[0.62rem] font-bold uppercase tracking-wide text-stone-600 ring-1 ring-stone-200 sm:hidden">
@@ -377,8 +426,37 @@ export function SignalLab({ enabled }: { enabled: boolean }) {
         </span>
       </button>
 
-      <div className={expanded ? 'block pb-3' : 'hidden sm:block sm:pb-3'}>
-        {/* Tab strip */}
+      <div
+        className={clsx(
+          'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3',
+          expanded ? 'block' : 'hidden sm:block',
+        )}
+      >
+        <p className="mx-3 mb-3 rounded-xl bg-emerald-50/90 px-2.5 py-2 text-[0.65rem] leading-relaxed text-emerald-950 ring-1 ring-emerald-100">
+          {SIGNAL_LAB_EDUCATION_NOTE}
+        </p>
+
+        <div className="mx-3 mb-3">
+          <CurrentSignalMix />
+        </div>
+
+        <div className="mx-3 mb-3">
+          <SignalLabApiTelemetry api={apiTelemetry} />
+        </div>
+
+        <div className="mx-3 mb-3">
+          <SignalLabWeather weather={weatherControls} />
+        </div>
+
+        <p className="mx-3 mb-2 text-[0.6rem] font-bold uppercase tracking-wider text-stone-400">
+          Manual demo signals
+        </p>
+        <p className="mx-3 mb-2 text-[0.62rem] leading-snug text-stone-500">
+          Source for this tab:{' '}
+          <span className="font-semibold text-stone-800">{activeSource}</span>. Feeds garden
+          state → Morning Garden Status.
+        </p>
+
         <div className="mx-3 mb-2 grid grid-cols-4 gap-1 rounded-xl bg-stone-100 p-1 ring-1 ring-stone-200">
           {TABS.map((tab) => (
             <button
@@ -481,10 +559,10 @@ export function SignalLab({ enabled }: { enabled: boolean }) {
         {/* Simulation Controls */}
         <div className="mx-3 mt-3 border-t border-stone-100 pt-2.5">
           <p className="text-[0.6rem] font-bold uppercase tracking-wider text-stone-400">
-            Simulation Controls
+            Garden time simulation
           </p>
           <p className="mt-1 text-[0.65rem] text-stone-400">
-            Explore how the garden reacts over time.
+            Advance mock garden time (separate from API telemetry above).
           </p>
 
           {/* Advance time */}

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -16,21 +16,21 @@ model User {
 }
 
 model Garden {
-  id            String          @id @default(cuid())
+  id            String         @id @default(cuid())
   userId        String
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   locationLabel String?
   goalMode      String?
   notes         String?
-  areas         Area[]
+  beds          Bed[]
   tasks         Task[]
   generatedPlan GeneratedPlan?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
-model Area {
+model Bed {
   id                  String    @id @default(cuid())
   gardenId            String
   garden              Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
@@ -42,24 +42,24 @@ model Area {
   notes               String?
   plannedPlantingDate DateTime?
   rows                Row[]
-  logs                AreaLog[]
+  logs                BedLog[]
   tasks               Task[]
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 }
 
 model Row {
-  id         String   @id @default(cuid())
-  areaId     String
-  area       Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  rowNumber  Int
-  cropName   String
-  isPlanted  Boolean  @default(false)
-  notes      String?
-  logs       RowLog[]
-  tasks      Task[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  bedId     String
+  bed       Bed      @relation(fields: [bedId], references: [id], onDelete: Cascade)
+  rowNumber Int
+  cropName  String
+  isPlanted Boolean  @default(false)
+  notes     String?
+  logs      RowLog[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model GeneratedPlan {
@@ -77,8 +77,8 @@ model Task {
   id            String    @id @default(cuid())
   gardenId      String
   garden        Garden    @relation(fields: [gardenId], references: [id], onDelete: Cascade)
-  areaId        String?
-  area          Area?     @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  bedId         String?
+  bed           Bed?      @relation(fields: [bedId], references: [id], onDelete: SetNull)
   rowId         String?
   row           Row?      @relation(fields: [rowId], references: [id], onDelete: SetNull)
   title         String
@@ -93,10 +93,10 @@ model Task {
   updatedAt     DateTime  @updatedAt
 }
 
-model AreaLog {
+model BedLog {
   id        String   @id @default(cuid())
-  areaId    String
-  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  bedId     String
+  bed       Bed      @relation(fields: [bedId], references: [id], onDelete: Cascade)
   note      String
   createdAt DateTime @default(now())
 }
@@ -110,33 +110,19 @@ model RowLog {
 }
 
 model SensorReading {
-
   id              String   @id @default(uuid())
-
   nodeId          String
-
   zoneId          String?
-
   batteryVoltage  Float?
-
   solarVoltage    Float?
-
   chargeCurrent   Float?
-
   loadCurrent     Float?
-
   airTempC        Float?
-
   humidityPct     Float?
-
   soilMoistureRaw Float?
-
   soilTempC       Float?
-
   receivedAt      DateTime @default(now())
 
   @@index([zoneId, receivedAt])
-
   @@index([nodeId, receivedAt])
-
 }

@@ -13,7 +13,7 @@ export const GARDEN_PLAN_GENERATION_FAILED_ERROR = 'Failed to generate garden pl
 export type GardenPlanSun = 'full sun' | 'part sun' | 'shade' | 'unsure'
 
 /** One row within a bed (optional row label, crop, notes, width). */
-export type GardenPlanAreaRow = {
+export type GardenPlanBedRow = {
   row_label?: string
   crop?: string
   notes?: string
@@ -26,15 +26,15 @@ export type GardenPlanRequest = {
   goals?: string
   threats?: string[]
   crops?: string[]
-  areas: {
-    area_name: string
+  beds: {
+    bed_name: string
     size?: string
     sun?: GardenPlanSun
     notes?: string
-    /** Flat list of crops in this area (optional; may mirror rows). */
+    /** Flat list of crops in this bed (optional; may mirror rows). */
     crops?: string[]
     /** Row-level placement when provided. */
-    rows?: GardenPlanAreaRow[]
+    rows?: GardenPlanBedRow[]
   }[]
 }
 

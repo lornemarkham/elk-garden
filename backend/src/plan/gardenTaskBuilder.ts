@@ -1,12 +1,12 @@
 import type { GardenPlanResponse } from '../shared/gardenPlanContract.js'
-import type { StoredGardenArea } from '../types/storedGarden.js'
+import type { StoredGardenBed } from '../types/storedGarden.js'
 import type { PlanTaskRecord, TaskSection } from './planTaskTypes.js'
-import { areaIdForTask } from './areaTaskIds.js'
+import { bedIdForTask } from './bedTaskIds.js'
 import {
-  computeAreaTimingDisplay,
+  computeBedTimingDisplay,
   recommendedTimingKind,
-  taskSortPriorityForArea,
-} from './areaTimingStatus.js'
+  taskSortPriorityForBed,
+} from './bedTimingStatus.js'
 import { THREATS } from './planConstants.js'
 import { filterNextStepsForUserCrops } from './planNextStepsFilter.js'
 import { bucketForCrop } from './plantingTimelineVernon.js'
@@ -94,16 +94,16 @@ type Draft = {
 }
 
 /**
- * Context-aware, grouped garden tasks tied to garden areas and rows.
- * IDs stay stable per area for grouped actions (completions survive regeneration).
+ * Context-aware, grouped garden tasks tied to garden beds and rows.
+ * IDs stay stable per bed for grouped actions (completions survive regeneration).
  */
 export function buildGardenTasksFromState(params: {
   plan: GardenPlanResponse | null
-  areas: StoredGardenArea[]
+  beds: StoredGardenBed[]
   threats: Record<string, boolean>
   userCrops: string[]
 }): PlanTaskRecord[] {
-  const { plan, areas, threats, userCrops } = params
+  const { plan, beds, threats, userCrops } = params
   const drafts: Draft[] = []
   const titleSeen = new Set<string>()
 
@@ -121,17 +121,17 @@ export function buildGardenTasksFromState(params: {
     drafts.push({ id, section, title: t, supportiveNote })
   }
 
-  const hasRowCrop = areas.some((a) =>
+  const hasRowCrop = beds.some((a) =>
     a.rows.some((r) => r.crop.trim().length > 0),
   )
 
-  const firstNamedArea = areas.find((x) =>
+  const firstNamedBed = beds.find((x) =>
     x.rows.some((r) => r.crop.trim()),
   )
-  const firstAreaLabel = firstNamedArea?.name.trim() || ''
+  const firstBedLabel = firstNamedBed?.name.trim() || ''
 
-  for (const a of areas) {
-    const areaLabel = a.name.trim() || 'this area'
+  for (const a of beds) {
+    const bedLabel = a.name.trim() || 'this bed'
     const rowsWithCrop: {
       idx: number
       rowId: string
@@ -166,8 +166,8 @@ export function buildGardenTasksFromState(params: {
           'today',
           `plant_${a.id}`,
           unplanted.length === 1
-            ? `Plant ${cropStr} — ${areaLabel}, ${rowTag}`
-            : `Plant ${cropStr} — ${areaLabel} (${rowTag})`,
+            ? `Plant ${cropStr} — ${bedLabel}, ${rowTag}`
+            : `Plant ${cropStr} — ${bedLabel} (${rowTag})`,
           withPlantTiming(
             'Depth and spacing: follow your seed packet.',
             crops,
@@ -177,7 +177,7 @@ export function buildGardenTasksFromState(params: {
         add(
           'up_next',
           `wait_plant_${a.id}`,
-          `Hold off planting ${areaLabel} — still early for these crops`,
+          `Hold off planting ${bedLabel} — still early for these crops`,
           'Prep soil if you like — sow when the timing window opens.',
         )
       }
@@ -185,8 +185,8 @@ export function buildGardenTasksFromState(params: {
         'up_next',
         `prep_soil_${a.id}`,
         unplanted.length === 1
-          ? `Prep soil — ${areaLabel}, ${rowTag}`
-          : `Prep soil — ${areaLabel} (${rowTag})`,
+          ? `Prep soil — ${bedLabel}, ${rowTag}`
+          : `Prep soil — ${bedLabel} (${rowTag})`,
         withPrepTiming(
           'Weed, loosen the top few inches, clear debris.',
         ),
@@ -208,8 +208,8 @@ export function buildGardenTasksFromState(params: {
         'today',
         `water_planted_${a.id}`,
         planted.length === 1
-          ? `Water ${rowTag} in ${areaLabel} — ${cropStr}`
-          : `Water ${rowTag} in ${areaLabel} — ${cropStr}`,
+          ? `Water ${rowTag} in ${bedLabel} — ${cropStr}`
+          : `Water ${rowTag} in ${bedLabel} — ${cropStr}`,
         waterNote,
       )
       const growthEarlyNote = appendTimingLine(
@@ -220,8 +220,8 @@ export function buildGardenTasksFromState(params: {
         'up_next',
         `check_growth_${a.id}`,
         planted.length === 1
-          ? `Watch for sprouts — ${cropStr}, ${rowTag} in ${areaLabel}`
-          : `Watch for sprouts — ${rowTag} in ${areaLabel} (${cropStr})`,
+          ? `Watch for sprouts — ${cropStr}, ${rowTag} in ${bedLabel}`
+          : `Watch for sprouts — ${rowTag} in ${bedLabel} (${cropStr})`,
         growthEarlyNote,
       )
       const wantsThin =
@@ -232,8 +232,8 @@ export function buildGardenTasksFromState(params: {
           'up_next',
           `thin_spacing_${a.id}`,
           planted.length === 1
-            ? `Thin or space ${cropStr} in ${areaLabel} if crowded`
-            : `Check spacing in ${areaLabel} (${rowTag}) — thin if crowded`,
+            ? `Thin or space ${cropStr} in ${bedLabel} if crowded`
+            : `Check spacing in ${bedLabel} (${rowTag}) — thin if crowded`,
           appendTimingLine(midGrowthTimingHint(), whyThinSpacing()),
         )
       }
@@ -243,14 +243,14 @@ export function buildGardenTasksFromState(params: {
       add(
         'up_next',
         `pea_support_${a.id}`,
-        `Add pea supports in ${areaLabel} when vines need them`,
+        `Add pea supports in ${bedLabel} when vines need them`,
         peaSupportTimingHint(),
       )
     }
   }
 
   const activeThreats = THREATS.filter((t) => threats[t.id])
-  const placeHint = firstAreaLabel || 'your garden areas'
+  const placeHint = firstBedLabel || 'your garden beds'
 
   if (hasRowCrop) {
     const wantsDeer = activeThreats.some((t) => t.id === 'deer')
@@ -270,7 +270,7 @@ export function buildGardenTasksFromState(params: {
     if (activeThreats.some((t) => t.id === 'insects')) {
       add(
         'up_next',
-        `threat_insects_${firstNamedArea?.id ?? 'garden'}`,
+        `threat_insects_${firstNamedBed?.id ?? 'garden'}`,
         `Scan leaves in ${placeHint} for insect damage`,
         'This week — catch issues before they spread.',
       )
@@ -278,7 +278,7 @@ export function buildGardenTasksFromState(params: {
     if (activeThreats.some((t) => t.id === 'heat')) {
       add(
         'up_next',
-        `threat_heat_${firstNamedArea?.id ?? 'garden'}`,
+        `threat_heat_${firstNamedBed?.id ?? 'garden'}`,
         `On hot afternoons, check ${placeHint} for wilting`,
         'This week — water stressed plants first.',
       )
@@ -286,7 +286,7 @@ export function buildGardenTasksFromState(params: {
     if (activeThreats.some((t) => t.id === 'dry_soil')) {
       add(
         'today',
-        `threat_dry_${firstNamedArea?.id ?? 'garden'}`,
+        `threat_dry_${firstNamedBed?.id ?? 'garden'}`,
         `Check soil moisture in ${placeHint} before watering`,
         appendTimingLine(
           'Do this today — avoid guessing from the surface alone.',
@@ -311,8 +311,8 @@ export function buildGardenTasksFromState(params: {
   }
 
   if (!hasRowCrop) {
-    const greens = areas.find((a) => /green|salad|lettuce/i.test(a.name))
-    const warm = areas.find((a) => /tomato|pepper|warm|sun|south/i.test(a.name))
+    const greens = beds.find((a) => /green|salad|lettuce/i.test(a.name))
+    const warm = beds.find((a) => /tomato|pepper|warm|sun|south/i.test(a.name))
     const chipCrops = dedupeCropsCaseInsensitive(userCrops)
     const forGreens = chipCrops.filter((c) => {
       const b = bucketForCrop(c)
@@ -323,7 +323,7 @@ export function buildGardenTasksFromState(params: {
       return warm && (b === 'warm' || b === 'later')
     })
     if (forGreens.length > 0 && greens) {
-      const greensLabel = greens.name.trim() || 'your greens area'
+      const greensLabel = greens.name.trim() || 'your greens bed'
       add(
         'up_next',
         `chip_group_greens_${greens.id}`,
@@ -334,7 +334,7 @@ export function buildGardenTasksFromState(params: {
       )
     }
     if (forWarm.length > 0 && warm) {
-      const warmLabel = warm.name.trim() || 'your warm-season area'
+      const warmLabel = warm.name.trim() || 'your warm-season bed'
       add(
         'up_next',
         `chip_group_warm_${warm.id}`,
@@ -347,7 +347,7 @@ export function buildGardenTasksFromState(params: {
   }
 
   const hasGardenContext =
-    areas.length > 0 || userCrops.some((c) => c.trim()) || !!plan
+    beds.length > 0 || userCrops.some((c) => c.trim()) || !!plan
 
   const todayCount = () => drafts.filter((d) => d.section === 'today').length
 
@@ -398,21 +398,21 @@ export function buildGardenTasksFromState(params: {
   }
 
   function sortKeyForDraft(d: Draft): number {
-    const aid = areaIdForTask(d.id, areas)
+    const aid = bedIdForTask(d.id, beds)
     if (!aid) {
       if (
         d.id === 'daily_moisture_rows' &&
-        areas.some(
-          (a) => computeAreaTimingDisplay(a).status === 'fully_planted',
+        beds.some(
+          (a) => computeBedTimingDisplay(a).status === 'fully_planted',
         )
       ) {
         return -2
       }
       return 40
     }
-    const area = areas.find((x) => x.id === aid)
-    if (!area) return 40
-    return taskSortPriorityForArea(area)
+    const bed = beds.find((x) => x.id === aid)
+    if (!bed) return 40
+    return taskSortPriorityForBed(bed)
   }
 
   drafts.sort((a, b) => {

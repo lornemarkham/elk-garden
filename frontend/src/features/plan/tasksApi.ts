@@ -1,6 +1,6 @@
 import type { GardenPlanResponse } from '@shared/gardenPlanContract'
 import { getApiBaseUrl } from '../../lib/apiBase'
-import type { StoredGardenArea } from '../canvas/gardenStateStorage'
+import type { StoredGardenBed } from '../canvas/gardenStateStorage'
 import type { PlanTaskRecord } from './planTasksStorage'
 
 const TASKS_GENERATE_PATH = '/api/tasks/generate'
@@ -13,7 +13,7 @@ function tasksGenerateUrl(): string {
 
 export async function fetchGeneratedTasks(params: {
   plan: GardenPlanResponse | null
-  areas: StoredGardenArea[]
+  beds: StoredGardenBed[]
   threats: Record<string, boolean>
   userCrops: string[]
 }): Promise<PlanTaskRecord[]> {

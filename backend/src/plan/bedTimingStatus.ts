@@ -1,7 +1,7 @@
-import type { StoredGardenArea } from '../canvas/gardenStateStorage'
-import { bucketForCrop } from './plantingTimelineVernon'
+import type { StoredGardenBed } from '../types/storedGarden.js'
+import { bucketForCrop } from './plantingTimelineVernon.js'
 
-export type GardenAreaStatus =
+export type GardenBedStatus =
   | 'not_started'
   | 'ready_to_plant'
   | 'fully_planted'
@@ -17,8 +17,8 @@ export type RecommendedTimingKind =
   | 'fully_planted'
   | 'growing'
 
-export type AreaTimingDisplay = {
-  status: GardenAreaStatus
+export type BedTimingDisplay = {
+  status: GardenBedStatus
   statusLabel: string
   /** Short “when to act” line — same as recommended timing message. */
   timingHint: string
@@ -34,15 +34,15 @@ const RECOMMENDED_LABEL: Record<RecommendedTimingKind, string> = {
   growing: 'Growing — keep watering and watching',
 }
 
-function rowsWithCrop(area: StoredGardenArea) {
-  return area.rows.filter((r) => r.crop.trim().length > 0)
+function rowsWithCrop(bed: StoredGardenBed) {
+  return bed.rows.filter((r) => r.crop.trim().length > 0)
 }
 
 /** Public: use for headers and Tasks. */
 export function recommendedTimingKind(
-  area: StoredGardenArea,
+  bed: StoredGardenBed,
 ): RecommendedTimingKind {
-  const withCrop = rowsWithCrop(area)
+  const withCrop = rowsWithCrop(bed)
   if (withCrop.length === 0) return 'not_started'
   const unplanted = withCrop.filter((r) => !r.planted)
   if (unplanted.length > 0) {
@@ -57,8 +57,8 @@ export function recommendedTimingKind(
   return 'fully_planted'
 }
 
-export function recommendedTimingLabel(area: StoredGardenArea): string {
-  return RECOMMENDED_LABEL[recommendedTimingKind(area)]
+export function recommendedTimingLabel(bed: StoredGardenBed): string {
+  return RECOMMENDED_LABEL[recommendedTimingKind(bed)]
 }
 
 function parseLocalISODate(iso: string): Date {
@@ -101,12 +101,12 @@ function windowDaysForKind(kind: RecommendedTimingKind): {
 export type PlannedAlignment = 'on_track' | 'early' | 'late'
 
 export function plannedAlignment(
-  area: StoredGardenArea,
+  bed: StoredGardenBed,
 ): PlannedAlignment | null {
-  const raw = area.plannedPlantingDate
+  const raw = bed.plannedPlantingDate
   if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
-  if (computeAreaTimingDisplay(area).status !== 'ready_to_plant') return null
-  const kind = recommendedTimingKind(area)
+  if (computeBedTimingDisplay(bed).status !== 'ready_to_plant') return null
+  const kind = recommendedTimingKind(bed)
   const w = windowDaysForKind(kind)
   const delta = daysFromTodayToPlanned(raw)
   if (delta < w.min) return 'early'
@@ -140,15 +140,15 @@ export function formatPlannedDateShort(
  * Derived from row crops, planted flags, and simple crop timing buckets.
  * No persisted schedule — optional planned date is display + alignment only.
  */
-export function computeAreaTimingDisplay(
-  area: StoredGardenArea,
-): AreaTimingDisplay {
-  const withCrop = rowsWithCrop(area)
+export function computeBedTimingDisplay(
+  bed: StoredGardenBed,
+): BedTimingDisplay {
+  const withCrop = rowsWithCrop(bed)
   if (withCrop.length === 0) {
     return {
       status: 'not_started',
       statusLabel: 'Not started',
-      timingHint: recommendedTimingLabel(area),
+      timingHint: recommendedTimingLabel(bed),
     }
   }
 
@@ -157,7 +157,7 @@ export function computeAreaTimingDisplay(
     return {
       status: 'ready_to_plant',
       statusLabel: 'Ready to plant',
-      timingHint: recommendedTimingLabel(area),
+      timingHint: recommendedTimingLabel(bed),
     }
   }
 
@@ -167,23 +167,23 @@ export function computeAreaTimingDisplay(
     return {
       status: 'growing',
       statusLabel: 'Growing',
-      timingHint: recommendedTimingLabel(area),
+      timingHint: recommendedTimingLabel(bed),
     }
   }
 
   return {
     status: 'fully_planted',
     statusLabel: 'All rows planted',
-    timingHint: recommendedTimingLabel(area),
+    timingHint: recommendedTimingLabel(bed),
   }
 }
 
 /** Lower = sort earlier in Today / Up Next. */
-export function taskSortPriorityForArea(area: StoredGardenArea): number {
-  const d = computeAreaTimingDisplay(area)
+export function taskSortPriorityForBed(bed: StoredGardenBed): number {
+  const d = computeBedTimingDisplay(bed)
   if (d.status === 'fully_planted') return 0
   if (d.status === 'ready_to_plant') {
-    const k = recommendedTimingKind(area)
+    const k = recommendedTimingKind(bed)
     if (k === 'good_now') return 0
     if (k === 'best_2_3_weeks') return 1
     if (k === 'too_early_wait' || k === 'wait_warm_soil') return 6
@@ -194,7 +194,7 @@ export function taskSortPriorityForArea(area: StoredGardenArea): number {
   return 4
 }
 
-export function areaStatusBadgeClass(status: GardenAreaStatus): string {
+export function bedStatusBadgeClass(status: GardenBedStatus): string {
   switch (status) {
     case 'not_started':
       return 'bg-stone-100 text-stone-700 ring-stone-200/90'

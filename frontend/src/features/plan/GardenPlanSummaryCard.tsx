@@ -3,7 +3,7 @@ import { GOAL_LABELS } from './planConstants'
 import { loadPlanTasks } from './planTasksStorage'
 
 export function GardenPlanSummaryCard({
-  areaCount,
+  bedCount,
   cropCount,
   locationText,
   goal,
@@ -12,13 +12,13 @@ export function GardenPlanSummaryCard({
   onViewLayout,
   onEditBasics,
 }: {
-  areaCount: number
+  bedCount: number
   cropCount: number
   locationText: string
   goal: GardenGoal
   /** Whether a generated plan is currently loaded (Ask ELK has run). */
   hasElkPlan: boolean
-  /** Draft has enough for Ask ELK (≥1 crop or ≥1 area). */
+  /** Draft has enough for Ask ELK (≥1 crop or ≥1 bed). */
   canAskElk: boolean
   onViewLayout: () => void
   onEditBasics: () => void
@@ -29,7 +29,7 @@ export function GardenPlanSummaryCard({
 
   const missingForAsk =
     !canAskElk
-      ? 'Add at least one crop or one garden area to use Ask ELK.'
+      ? 'Add at least one crop or one garden bed to use Ask ELK.'
       : null
 
   let nextStep: string
@@ -83,11 +83,11 @@ export function GardenPlanSummaryCard({
 
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-white/70 px-3 py-2.5 ring-1 ring-stone-200/80">
-          <dt className="font-medium text-stone-500">Areas</dt>
+          <dt className="font-medium text-stone-500">Beds</dt>
           <dd className="mt-0.5 font-semibold text-stone-900">
-            {areaCount === 0
+            {bedCount === 0
               ? 'None yet'
-              : `${areaCount} ${areaCount === 1 ? 'area' : 'areas'}`}
+              : `${bedCount} ${bedCount === 1 ? 'bed' : 'beds'}`}
           </dd>
         </div>
         <div className="rounded-xl bg-white/70 px-3 py-2.5 ring-1 ring-stone-200/80">

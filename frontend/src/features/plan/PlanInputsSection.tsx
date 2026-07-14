@@ -4,25 +4,25 @@ import type { ChangeEvent } from 'react'
 import { useEffect, useId, useMemo, useRef } from 'react'
 import { Card } from '../../components/Card'
 import type {
-  StoredGardenArea,
+  StoredGardenBed,
   StoredGardenRow,
 } from '../canvas/gardenStateStorage'
 import {
-  AREA_PRESETS,
+  BED_PRESETS,
   GOAL_LABELS,
   type GardenGoal,
   type SunLevel,
   THREATS,
 } from './planConstants'
 import { PlanCollapsibleSection } from './PlanCollapsibleSection'
-import { dedupeCropListPreserveOrder } from './planAreaCrops'
+import { dedupeCropListPreserveOrder } from './planBedCrops'
 import {
-  areaStatusBadgeClass,
-  computeAreaTimingDisplay,
+  bedStatusBadgeClass,
+  computeBedTimingDisplay,
   formatPlannedDateShort,
   plannedAlignment,
   plannedAlignmentBadgeClass,
-} from './areaTimingStatus'
+} from './bedTimingStatus'
 
 type PlanInputsSectionProps = {
   fileInputId: string
@@ -42,31 +42,31 @@ type PlanInputsSectionProps = {
   onGoalChange: (g: GardenGoal) => void
   threats: Record<string, boolean>
   onToggleThreat: (id: string) => void
-  areas: StoredGardenArea[]
-  expandedAreaId: string | null
-  onToggleAreaExpand: (areaId: string) => void
-  onActivateArea: (areaId: string) => void
+  beds: StoredGardenBed[]
+  expandedBedId: string | null
+  onToggleBedExpand: (bedId: string) => void
+  onActivateBed: (bedId: string) => void
   showPresetRow: boolean
-  onStartAddArea: () => void
+  onStartAddBed: () => void
   onCancelPreset: () => void
-  onAddAreaFromPreset: (presetId: string) => void
-  onRemoveArea: (id: string) => void
-  onUpdateArea: (id: string, patch: Partial<StoredGardenArea>) => void
-  onAddRow: (areaId: string) => void
-  onRemoveRow: (areaId: string, rowId: string) => void
+  onAddBedFromPreset: (presetId: string) => void
+  onRemoveBed: (id: string) => void
+  onUpdateBed: (id: string, patch: Partial<StoredGardenBed>) => void
+  onAddRow: (bedId: string) => void
+  onRemoveRow: (bedId: string, rowId: string) => void
   onUpdateRow: (
-    areaId: string,
+    bedId: string,
     rowId: string,
     patch: Partial<StoredGardenRow>,
   ) => void
   draftSections: {
     crops: boolean
-    areas: boolean
+    beds: boolean
     place: boolean
     threats: boolean
   }
   onDraftSectionChange: (
-    key: 'crops' | 'areas' | 'place' | 'threats',
+    key: 'crops' | 'beds' | 'place' | 'threats',
     open: boolean,
   ) => void
 }
@@ -90,16 +90,16 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
     onGoalChange,
     threats,
     onToggleThreat,
-    areas,
-    expandedAreaId,
-    onToggleAreaExpand,
-    onActivateArea,
+    beds,
+    expandedBedId,
+    onToggleBedExpand,
+    onActivateBed,
     showPresetRow,
-    onStartAddArea,
+    onStartAddBed,
     onCancelPreset,
-    onAddAreaFromPreset,
-    onRemoveArea,
-    onUpdateArea,
+    onAddBedFromPreset,
+    onRemoveBed,
+    onUpdateBed,
     onAddRow,
     onRemoveRow,
     onUpdateRow,
@@ -113,8 +113,8 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
   )
 
   const totalRows = useMemo(
-    () => areas.reduce((sum, a) => sum + a.rows.length, 0),
-    [areas],
+    () => beds.reduce((sum, a) => sum + a.rows.length, 0),
+    [beds],
   )
 
   const threatPickCount = useMemo(
@@ -239,11 +239,11 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
       >
         <p className="mb-3 text-sm leading-relaxed text-stone-600">
           Add everything you plan to grow first, then place crops into garden
-          areas and rows below.
+          beds and rows below.
         </p>
         <Card className="p-4 ring-stone-200">
           <label className="block text-base font-semibold text-stone-950">
-            Unassigned crops (not placed in a garden area yet)
+            Unassigned crops (not placed in a garden bed yet)
           </label>
           <p className="mt-1 text-sm text-stone-500">
             Add crop names you might use anywhere. Rows pull from this list; rows
@@ -309,30 +309,30 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
       </PlanCollapsibleSection>
 
       <PlanCollapsibleSection
-        id="draft-areas"
-        title="Garden areas"
+        id="draft-beds"
+        title="Garden beds"
         summaryLine={
-          areas.length === 0
-            ? 'No areas yet — add a bed or box when you’re ready.'
-            : `${areas.length} ${areas.length === 1 ? 'area' : 'areas'} · ${totalRows} ${totalRows === 1 ? 'row' : 'rows'}`
+          beds.length === 0
+            ? 'No beds yet — add a bed or box when you’re ready.'
+            : `${beds.length} ${beds.length === 1 ? 'bed' : 'beds'} · ${totalRows} ${totalRows === 1 ? 'row' : 'rows'}`
         }
-        open={draftSections.areas}
-        onOpenChange={(open) => onDraftSectionChange('areas', open)}
+        open={draftSections.beds}
+        onOpenChange={(open) => onDraftSectionChange('beds', open)}
       >
       <div className="rounded-2xl bg-white/50 p-4 ring-1 ring-stone-200/80 sm:p-6">
         <p className="text-sm leading-relaxed text-stone-500">
-          Each garden area is full width; rows run left-to-right. Your crop list
+          Each garden bed is full width; rows run left-to-right. Your crop list
           above is reusable — the same crop can go in multiple rows.
         </p>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
-            onClick={onStartAddArea}
+            onClick={onStartAddBed}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-900 px-4 py-3 text-base font-semibold text-white shadow-sm ring-1 ring-stone-900 hover:bg-stone-800"
           >
             <Plus className="h-5 w-5" aria-hidden="true" />
-            Add area
+            Add bed
           </button>
         </div>
 
@@ -342,11 +342,11 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
               Quick start — pick a type (you can edit everything after)
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {AREA_PRESETS.map((p) => (
+              {BED_PRESETS.map((p) => (
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => onAddAreaFromPreset(p.id)}
+                  onClick={() => onAddBedFromPreset(p.id)}
                   className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-stone-900 ring-1 ring-stone-200 hover:bg-emerald-50/80 hover:ring-emerald-200"
                 >
                   {p.label}
@@ -363,19 +363,19 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
           </div>
         ) : null}
 
-        {areas.length === 0 ? (
+        {beds.length === 0 ? (
           <p className="mt-6 text-base leading-relaxed text-stone-600">
-            No areas yet. Tap{' '}
-            <span className="font-semibold text-stone-800">Add area</span> to
-            sketch out your garden areas or boxes.
+            No beds yet. Tap{' '}
+            <span className="font-semibold text-stone-800">Add bed</span> to
+            sketch out your garden beds or boxes.
           </p>
         ) : (
           <div className="mt-6 space-y-3">
-            {areas.map((a) => {
-              const expanded = expandedAreaId === a.id
+            {beds.map((a) => {
+              const expanded = expandedBedId === a.id
               const rowCount = a.rows.length
               const plantedCount = a.rows.filter((r) => r.planted).length
-              const timing = computeAreaTimingDisplay(a)
+              const timing = computeBedTimingDisplay(a)
               const plannedRaw = a.plannedPlantingDate
               const plannedOk =
                 plannedRaw && /^\d{4}-\d{2}-\d{2}$/.test(plannedRaw)
@@ -393,11 +393,11 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                 >
                   <button
                     type="button"
-                    onClick={() => onToggleAreaExpand(a.id)}
+                    onClick={() => onToggleBedExpand(a.id)}
                     className="flex min-h-[3.25rem] flex-1 items-center gap-3 px-4 py-3 text-left touch-manipulation"
                     aria-expanded={expanded}
-                    aria-controls={`area-panel-${a.id}`}
-                    id={`area-header-${a.id}`}
+                    aria-controls={`bed-panel-${a.id}`}
+                    id={`bed-header-${a.id}`}
                   >
                     <ChevronDown
                       className={clsx(
@@ -408,13 +408,13 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                     />
                     <div className="min-w-0">
                       <p className="truncate text-base font-semibold text-stone-950">
-                        {a.name.trim() || 'Unnamed area'}
+                        {a.name.trim() || 'Unnamed bed'}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span
                           className={clsx(
                             'inline-flex shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1',
-                            areaStatusBadgeClass(timing.status),
+                            bedStatusBadgeClass(timing.status),
                           )}
                         >
                           {timing.statusLabel}
@@ -457,10 +457,10 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      onRemoveArea(a.id)
+                      onRemoveBed(a.id)
                     }}
                     className="shrink-0 self-stretch px-3 text-stone-500 hover:bg-rose-50 hover:text-rose-800"
-                    aria-label={`Remove ${a.name || 'area'}`}
+                    aria-label={`Remove ${a.name || 'bed'}`}
                   >
                     <Trash2 className="mx-auto h-5 w-5" aria-hidden="true" />
                   </button>
@@ -468,21 +468,21 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
 
                 {expanded ? (
                 <div
-                  id={`area-panel-${a.id}`}
+                  id={`bed-panel-${a.id}`}
                   role="region"
-                  aria-labelledby={`area-header-${a.id}`}
-                  onFocusCapture={() => onActivateArea(a.id)}
+                  aria-labelledby={`bed-header-${a.id}`}
+                  onFocusCapture={() => onActivateBed(a.id)}
                   className="border-t border-stone-100 px-4 pb-4 pt-3"
                 >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <label className="text-sm font-semibold text-stone-600">
-                      Area name
+                      Bed name
                     </label>
                     <input
                       value={a.name}
                       onChange={(e) =>
-                        onUpdateArea(a.id, { name: e.target.value })
+                        onUpdateBed(a.id, { name: e.target.value })
                       }
                       placeholder="e.g. Greens bed"
                       className="mt-1 w-full rounded-xl bg-stone-50 px-3 py-2 text-lg font-semibold text-stone-950 ring-1 ring-stone-200 placeholder:text-stone-400 focus:ring-2 focus:ring-emerald-600"
@@ -499,7 +499,7 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                       type="date"
                       value={a.plannedPlantingDate ?? ''}
                       onChange={(e) =>
-                        onUpdateArea(a.id, {
+                        onUpdateBed(a.id, {
                           plannedPlantingDate:
                             e.target.value.trim() || undefined,
                         })
@@ -517,7 +517,7 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                     <input
                       value={a.size}
                       onChange={(e) =>
-                        onUpdateArea(a.id, { size: e.target.value })
+                        onUpdateBed(a.id, { size: e.target.value })
                       }
                       placeholder="e.g. 4 × 8 ft"
                       className="mt-1 w-full rounded-xl bg-stone-50 px-3 py-2 text-base text-stone-900 ring-1 ring-stone-200 focus:ring-2 focus:ring-emerald-600"
@@ -530,7 +530,7 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                     <select
                       value={a.sun}
                       onChange={(e) =>
-                        onUpdateArea(a.id, {
+                        onUpdateBed(a.id, {
                           sun: e.target.value as SunLevel,
                         })
                       }
@@ -549,7 +549,7 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
                     <textarea
                       value={a.notes}
                       onChange={(e) =>
-                        onUpdateArea(a.id, { notes: e.target.value })
+                        onUpdateBed(a.id, { notes: e.target.value })
                       }
                       rows={2}
                       placeholder="Anything helpful to remember…"
@@ -560,7 +560,7 @@ export function PlanInputsSection(props: PlanInputsSectionProps) {
 
                 <div className="mt-4 w-full min-w-0 border-t border-stone-100 pt-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
-                    Rows (left → right across the area)
+                    Rows (left → right across the bed)
                   </p>
                   <div
                     className="rows-scroll w-full min-w-0 touch-pan-x overflow-x-auto overflow-y-visible overscroll-x-contain scroll-smooth pb-2 [-webkit-overflow-scrolling:touch]"

@@ -574,7 +574,7 @@ function updateZoneFromSignal(garden: Garden, event: GardenSignalEvent): Garden[
         ...z,
         moistureStatus: 'dry',
         health: 'watch',
-        headline: config?.title ?? 'Sensor signal says this area is drying out.',
+        headline: config?.title ?? 'Sensor signal says this bed is drying out.',
       }
     }
     if (

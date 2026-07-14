@@ -3,7 +3,7 @@ import {
   GARDEN_PLAN_GENERATION_FAILED_ERROR,
   GARDEN_PLAN_INVALID_AI_SHAPE_ERROR,
   GARDEN_PLAN_OPENAI_KEY_MISSING_ERROR,
-  type GardenPlanAreaRow,
+  type GardenPlanBedRow,
   type GardenPlanRequest,
   type GardenPlanResponse,
 } from '../shared/gardenPlanContract.js'
@@ -42,11 +42,11 @@ Every answer must feel written for THIS gardener’s exact crops, threats, locat
 
 Rules:
 - Use plain language. Short clauses. No filler, no blog tone, no encyclopedia voice.
-- You MUST tie recommendations to the user’s listed crops, threats, and areas by name where relevant.
+- You MUST tie recommendations to the user’s listed crops, threats, and beds by name where relevant.
 - companion_planting: when two crops pair well, say WHY in one tight line (scent confusion, nutrient use, shade, timing, harvest habit—not vague “they’re friends”).
 - threat_mitigation: map each selected threat to concrete actions (fencing specs, timing, products only if necessary, cultural practices).
 - watering_strategy: if dry soil or heat is a threat, say deep watering, mulch, and soil organic matter explicitly.
-- layout_strategy: assign priorities to their named areas (sun, size, notes) and say what goes where; when the user listed rows within a bed, name each row label and crop.
+- layout_strategy: assign priorities to their named beds (sun, size, notes) and say what goes where; when the user listed rows within a bed, name each row label and crop.
 - If location is missing, say one brief assumption; if present, mention season length, heat/cold, or water stress when it changes the plan.
 - plan_summary: one tight paragraph (3–5 sentences max) that names their situation and top moves.
 - weekly_plan: exactly 3–6 strings, each a concrete task for the NEXT SEVEN DAYS; phrase time as “this week” where natural; name specific crops/threats from their list and use location/weather when provided (e.g. deep-water tomatoes 2–3× this week if hot/dry; scout leaf undersides for aphids; thin lettuce to stop crowding). Short imperative lines only.
@@ -67,65 +67,65 @@ export function validateGardenPlanRequest(
   }
   const o = body as Record<string, unknown>
 
-  if (!('areas' in o) || !Array.isArray(o.areas)) {
-    return { ok: false, error: 'Field "areas" is required and must be an array.' }
+  if (!('beds' in o) || !Array.isArray(o.beds)) {
+    return { ok: false, error: 'Field "beds" is required and must be an array.' }
   }
 
-  const areas: GardenPlanRequest['areas'] = []
-  for (let i = 0; i < o.areas.length; i++) {
-    const row = o.areas[i]
+  const beds: GardenPlanRequest['beds'] = []
+  for (let i = 0; i < o.beds.length; i++) {
+    const row = o.beds[i]
     if (row === null || typeof row !== 'object') {
-      return { ok: false, error: `areas[${i}] must be an object.` }
+      return { ok: false, error: `beds[${i}] must be an object.` }
     }
     const a = row as Record<string, unknown>
-    if (typeof a.area_name !== 'string') {
-      return { ok: false, error: `areas[${i}].area_name must be a string.` }
+    if (typeof a.bed_name !== 'string') {
+      return { ok: false, error: `beds[${i}].bed_name must be a string.` }
     }
-    let sun: GardenPlanRequest['areas'][0]['sun']
+    let sun: GardenPlanRequest['beds'][0]['sun']
     if (a.sun !== undefined) {
       if (typeof a.sun !== 'string' || !SUN_LEVELS.has(a.sun)) {
         return {
           ok: false,
-          error: `areas[${i}].sun must be one of: full sun, part sun, shade, unsure.`,
+          error: `beds[${i}].sun must be one of: full sun, part sun, shade, unsure.`,
         }
       }
-      sun = a.sun as GardenPlanRequest['areas'][0]['sun']
+      sun = a.sun as GardenPlanRequest['beds'][0]['sun']
     }
-    let areaCrops: string[] | undefined
+    let bedCrops: string[] | undefined
     if (a.crops !== undefined) {
       if (!isStringArray(a.crops)) {
         return {
           ok: false,
-          error: `areas[${i}].crops must be an array of strings.`,
+          error: `beds[${i}].crops must be an array of strings.`,
         }
       }
-      areaCrops = a.crops
+      bedCrops = a.crops
     }
 
-    let areaRows: GardenPlanAreaRow[] | undefined
+    let bedRows: GardenPlanBedRow[] | undefined
     if (a.rows !== undefined) {
       if (!Array.isArray(a.rows)) {
         return {
           ok: false,
-          error: `areas[${i}].rows must be an array.`,
+          error: `beds[${i}].rows must be an array.`,
         }
       }
-      const parsed: GardenPlanAreaRow[] = []
+      const parsed: GardenPlanBedRow[] = []
       for (let j = 0; j < a.rows.length; j++) {
         const item = a.rows[j]
         if (item === null || typeof item !== 'object') {
           return {
             ok: false,
-            error: `areas[${i}].rows[${j}] must be an object.`,
+            error: `beds[${i}].rows[${j}] must be an object.`,
           }
         }
         const o = item as Record<string, unknown>
-        const row: GardenPlanAreaRow = {}
+        const row: GardenPlanBedRow = {}
         if (o.row_label !== undefined) {
           if (typeof o.row_label !== 'string') {
             return {
               ok: false,
-              error: `areas[${i}].rows[${j}].row_label must be a string.`,
+              error: `beds[${i}].rows[${j}].row_label must be a string.`,
             }
           }
           row.row_label = o.row_label
@@ -134,7 +134,7 @@ export function validateGardenPlanRequest(
           if (typeof o.crop !== 'string') {
             return {
               ok: false,
-              error: `areas[${i}].rows[${j}].crop must be a string.`,
+              error: `beds[${i}].rows[${j}].crop must be a string.`,
             }
           }
           row.crop = o.crop
@@ -143,7 +143,7 @@ export function validateGardenPlanRequest(
           if (typeof o.notes !== 'string') {
             return {
               ok: false,
-              error: `areas[${i}].rows[${j}].notes must be a string.`,
+              error: `beds[${i}].rows[${j}].notes must be a string.`,
             }
           }
           row.notes = o.notes
@@ -152,23 +152,23 @@ export function validateGardenPlanRequest(
           if (typeof o.width_inches !== 'string') {
             return {
               ok: false,
-              error: `areas[${i}].rows[${j}].width_inches must be a string.`,
+              error: `beds[${i}].rows[${j}].width_inches must be a string.`,
             }
           }
           row.width_inches = o.width_inches
         }
         parsed.push(row)
       }
-      areaRows = parsed
+      bedRows = parsed
     }
 
-    areas.push({
-      area_name: a.area_name,
+    beds.push({
+      bed_name: a.bed_name,
       size: typeof a.size === 'string' ? a.size : undefined,
       sun,
       notes: typeof a.notes === 'string' ? a.notes : undefined,
-      crops: areaCrops,
-      rows: areaRows,
+      crops: bedCrops,
+      rows: bedRows,
     })
   }
 
@@ -189,7 +189,7 @@ export function validateGardenPlanRequest(
   }
 
   const data: GardenPlanRequest = {
-    areas,
+    beds,
     location: typeof o.location === 'string' ? o.location : undefined,
     goals: typeof o.goals === 'string' ? o.goals : undefined,
     threats,
@@ -244,10 +244,10 @@ function buildPersonalizationDirectives(data: GardenPlanRequest): string[] {
     )
   }
 
-  function areaCropSummaryLine(
-    a: GardenPlanRequest['areas'][number],
+  function bedCropSummaryLine(
+    a: GardenPlanRequest['beds'][number],
   ): string | null {
-    const n = a.area_name.trim() || 'Unnamed bed'
+    const n = a.bed_name.trim() || 'Unnamed bed'
     if (a.rows?.length) {
       const parts: string[] = []
       for (let i = 0; i < a.rows.length; i++) {
@@ -266,28 +266,28 @@ function buildPersonalizationDirectives(data: GardenPlanRequest): string[] {
     return c.length ? `${n}: ${c.join(', ')}` : null
   }
 
-  const areaCropLines = data.areas
-    .map(areaCropSummaryLine)
+  const bedCropLines = data.beds
+    .map(bedCropSummaryLine)
     .filter(Boolean) as string[]
 
   if (data.crops?.length) {
     d.push(
       `Every crop they listed must appear by name in plan_summary or in at least one list field: ${data.crops.join(', ')}.`,
     )
-  } else if (areaCropLines.length) {
+  } else if (bedCropLines.length) {
     d.push(
-      `No global crop list, but areas include crops—treat those as their full crop set: ${areaCropLines.join(' | ')}.`,
+      `No global crop list, but beds include crops—treat those as their full crop set: ${bedCropLines.join(' | ')}.`,
     )
   } else {
     d.push('No crops listed: still give practical layout/water/threat advice; note the gap briefly in plan_summary.')
   }
 
-  if (data.areas.length) {
+  if (data.beds.length) {
     d.push(
-      `Each named area must appear in layout_strategy (what belongs there and why): ${data.areas.map((a) => a.area_name.trim() || 'Unnamed bed').join(', ')}. When an area includes rows[], mention row labels and crops in layout_strategy; when only crops[] is present, group by area and name those crops.`,
+      `Each named bed must appear in layout_strategy (what belongs there and why): ${data.beds.map((a) => a.bed_name.trim() || 'Unnamed bed').join(', ')}. When an bed includes rows[], mention row labels and crops in layout_strategy; when only crops[] is present, group by bed and name those crops.`,
     )
   } else {
-    d.push('No areas listed: layout_strategy should propose a simple bed/zoning split that fits their crops and threats.')
+    d.push('No beds listed: layout_strategy should propose a simple bed/zoning split that fits their crops and threats.')
   }
 
   if (data.location?.trim()) {
@@ -319,19 +319,19 @@ export function buildGardenPlanPrompt(data: GardenPlanRequest): string {
     `Threats: ${data.threats?.length ? data.threats.join('; ') : '(none listed)'}`,
     `Crops: ${data.crops?.length ? data.crops.join('; ') : '(none listed)'}`,
     '',
-    'Garden areas:',
+    'Garden beds:',
   ]
 
-  if (data.areas.length === 0) {
+  if (data.beds.length === 0) {
     lines.push('(none listed)')
   } else {
-    for (const a of data.areas) {
+    for (const a of data.beds) {
       const cropLine =
         a.crops?.length && a.crops.some((s) => s.trim())
           ? `crops: ${a.crops.map((s) => s.trim()).filter(Boolean).join('; ')}`
           : null
       const parts = [
-        a.area_name.trim() || 'Unnamed area',
+        a.bed_name.trim() || 'Unnamed bed',
         a.size?.trim() ? `size ${a.size.trim()}` : null,
         a.sun ? `sun: ${a.sun}` : null,
         cropLine,
@@ -363,7 +363,7 @@ export function buildGardenPlanPrompt(data: GardenPlanRequest): string {
     '',
     '--- Output shape (strict) ---',
     '- plan_summary: string, one tight paragraph for THIS garden.',
-    '- layout_strategy: string[] bullets—where crops and defenses go, using their area names if provided.',
+    '- layout_strategy: string[] bullets—where crops and defenses go, using their bed names if provided.',
     '- companion_planting: string[] bullets—pairs from THEIR crop list; include brief WHY when you recommend a pair.',
     '- watering_strategy: string[] bullets—schedule/depth/mulch tuned to their threats (e.g. dry soil, heat).',
     '- threat_mitigation: string[] bullets—one line per major threat they listed, actionable.',
@@ -497,7 +497,7 @@ export async function processGardenPlanRequest(
   }
 
   console.log('[garden-plan] request validation: success', {
-    areasCount: checked.data.areas.length,
+    bedsCount: checked.data.beds.length,
     hasLocation: Boolean(checked.data.location?.trim()),
     hasGoals: Boolean(checked.data.goals?.trim()),
     cropsCount: checked.data.crops?.length ?? 0,

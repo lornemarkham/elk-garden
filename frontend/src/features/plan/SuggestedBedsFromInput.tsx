@@ -5,23 +5,23 @@ import { splitUserCropsForPlantBuckets } from './splitUserCropsForBuckets'
 const PRESET_COOL = 'greens'
 const PRESET_WARM = 'tomato'
 
-export function SuggestedAreasFromInput({
+export function SuggestedBedsFromInput({
   userCrops,
-  onAddArea,
+  onAddBed,
 }: {
   userCrops: string[]
-  onAddArea: (presetId: string) => void
+  onAddBed: (presetId: string) => void
 }) {
   const { plantNow, waitWarm } = splitUserCropsForPlantBuckets(userCrops)
   if (plantNow.length === 0 && waitWarm.length === 0) return null
 
   return (
-    <section aria-labelledby="suggested-areas-heading" className="space-y-4">
+    <section aria-labelledby="suggested-beds-heading" className="space-y-4">
       <h2
-        id="suggested-areas-heading"
+        id="suggested-beds-heading"
         className="text-lg font-semibold tracking-tight text-stone-950"
       >
-        Suggested areas
+        Suggested beds
       </h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {plantNow.length > 0 ? (
@@ -34,11 +34,11 @@ export function SuggestedAreasFromInput({
             </p>
             <button
               type="button"
-              onClick={() => onAddArea(PRESET_COOL)}
+              onClick={() => onAddBed(PRESET_COOL)}
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-stone-900 hover:bg-stone-800"
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Add area
+              Add bed
             </button>
           </Card>
         ) : null}
@@ -52,11 +52,11 @@ export function SuggestedAreasFromInput({
             </p>
             <button
               type="button"
-              onClick={() => onAddArea(PRESET_WARM)}
+              onClick={() => onAddBed(PRESET_WARM)}
               className="mt-4 inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-stone-900 hover:bg-stone-800"
             >
               <Plus className="h-4 w-4" aria-hidden />
-              Add area
+              Add bed
             </button>
           </Card>
         ) : null}

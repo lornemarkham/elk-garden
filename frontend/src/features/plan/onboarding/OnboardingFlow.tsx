@@ -12,7 +12,7 @@ import { fetchGardenPlan } from '../../canvas/gardenPlanApi'
 import {
   saveElkGardenState,
   type ElkGardenPersistedState,
-  type StoredGardenArea,
+  type StoredGardenBed,
 } from '../../canvas/gardenStateStorage'
 import {
   saveElkGardenPlanRecord,
@@ -26,7 +26,7 @@ import {
   type GardenGoal,
 } from '../planConstants'
 import { computeFallbackAssumptionsLikely } from '../planMinimumInput'
-import { dedupeCropListPreserveOrder } from '../planAreaCrops'
+import { dedupeCropListPreserveOrder } from '../planBedCrops'
 import {
   loadPlanTasks,
   ensureTomatoesDemoTask,
@@ -36,7 +36,7 @@ import {
 } from '../planTasksStorage'
 import { ElkGardenPageBranding } from '../../../components/ElkGardenPageBranding'
 import { Card } from '../../../components/Card'
-import { buildInitialAreasFromCrops } from './buildInitialAreasFromCrops'
+import { buildInitialBedsFromCrops } from './buildInitialBedsFromCrops'
 
 const DEFAULT_LOCATION = 'Vernon, BC'
 
@@ -172,16 +172,16 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
     setChips((x) => x.filter((y) => y !== c))
 
   const buildSnapshot = useCallback(
-    (areas: StoredGardenArea[], cropList: string[]): PlanInputsSnapshot => {
+    (beds: StoredGardenBed[], cropList: string[]): PlanInputsSnapshot => {
       const loc = locationText.trim()
       return {
         crops: [...cropList],
         location: loc,
         goalLabel: GOAL_LABELS[goal],
         threatLabels: [],
-        areaNames: areas.map((a) => a.name.trim() || 'Unnamed area'),
-        areaGroups: areas.map((a) => ({
-          name: a.name.trim() || 'Unnamed area',
+        bedNames: beds.map((a) => a.name.trim() || 'Unnamed bed'),
+        bedGroups: beds.map((a) => ({
+          name: a.name.trim() || 'Unnamed bed',
           rows: a.rows.map((r) => ({
             crop: r.crop,
             notes: r.notes,
@@ -191,7 +191,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
         seasonalRulesShownInUi: loc.length > 0,
         fallbackAssumptionsLikely: computeFallbackAssumptionsLikely(
           cropList,
-          areas,
+          beds,
           locationText,
         ),
       }
@@ -208,7 +208,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
     setError(null)
     setLoading(true)
     try {
-      const areas = buildInitialAreasFromCrops(cropList)
+      const beds = buildInitialBedsFromCrops(cropList)
       const threats: Record<string, boolean> = {}
       for (const t of THREATS) threats[t.id] = false
 
@@ -217,7 +217,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
         goals: GOAL_LABELS[goal],
         threats: [] as string[],
         crops: cropList,
-        areas: areas.map((a) => {
+        beds: beds.map((a) => {
           const flat = a.rows.map((r) => r.crop.trim()).filter(Boolean)
           const rowsPayload = a.rows.map((r, i) => ({
             row_label: `Row ${i + 1}`,
@@ -226,7 +226,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
             width_inches: r.widthInches.trim() || undefined,
           }))
           return {
-            area_name: a.name.trim() || 'Unnamed area',
+            bed_name: a.name.trim() || 'Unnamed bed',
             size: a.size.trim() || undefined,
             sun: SUN_TO_API[a.sun],
             notes: a.notes.trim() || undefined,
@@ -237,7 +237,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
       }
 
       const plan: GardenPlanResponse = await fetchGardenPlan(body)
-      const snapshot = buildSnapshot(areas, cropList)
+      const snapshot = buildSnapshot(beds, cropList)
       const savedAt = new Date().toISOString()
 
       const nextGarden: ElkGardenPersistedState = {
@@ -247,21 +247,21 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
         lastPlan: plan,
         completedWeeklyTasks: [],
         goal,
-        areas,
-        lastEditedAreaId: areas[0]?.id,
+        beds,
+        lastEditedBedId: beds[0]?.id,
       }
       saveElkGardenState(nextGarden)
       saveElkGardenPlanRecord({ savedAt, plan, inputsSnapshot: snapshot })
       const taskList = await fetchGeneratedTasks({
         plan,
-        areas,
+        beds,
         threats,
         userCrops: cropList,
       })
       savePlanTasks(
         ensureTomatoesDemoTask(
           mergePlanTaskCompletions(taskList, loadPlanTasks()),
-          hasTomatoesInPlanInput({ crops: cropList, areas }),
+          hasTomatoesInPlanInput({ crops: cropList, beds }),
         ),
       )
 
@@ -285,7 +285,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
           Start your garden
         </h1>
         <p className="mt-2 text-base leading-relaxed text-stone-600">
-          A few quick answers — then we&apos;ll build areas, rows, timing hints,
+          A few quick answers — then we&apos;ll build beds, rows, timing hints,
           and your first task list.
         </p>
       </header>
@@ -482,7 +482,7 @@ export function OnboardingFlow({ onBuildSuccess }: OnboardingFlowProps) {
             Build your plan
           </h2>
           <p className="text-sm leading-relaxed text-stone-600">
-            We&apos;ll create garden areas and rows from your crops, generate a
+            We&apos;ll create garden beds and rows from your crops, generate a
             tailored plan, and fill your Tasks tab with next steps.
           </p>
           <ul className="list-inside list-disc text-sm text-stone-600">

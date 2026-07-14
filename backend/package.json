@@ -10,12 +10,13 @@
     "build": "prisma generate && tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.7.0",
+    "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.1",
     "express": "^4.21.2",
     "openai": "^6.15.0",
+    "pg": "^8.13.1",
     "prisma": "^7.7.0",
     "zod": "^3.24.1"
   },
@@ -23,6 +24,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^24.12.0",
+    "@types/pg": "^8.11.10",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3"
   }

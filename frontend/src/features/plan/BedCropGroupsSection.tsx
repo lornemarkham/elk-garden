@@ -1,35 +1,35 @@
-import type { StoredGardenArea } from '../canvas/gardenStateStorage'
+import type { StoredGardenBed } from '../canvas/gardenStateStorage'
 import {
   dedupeCropListPreserveOrder,
-  globalCropsNotInAnyArea,
-} from './planAreaCrops'
+  globalCropsNotInAnyBed,
+} from './planBedCrops'
 
-const UNASSIGNED_TITLE = 'Unassigned crops (not placed in a garden area yet)'
+const UNASSIGNED_TITLE = 'Unassigned crops (not placed in a garden bed yet)'
 
-export function AreaCropGroupsSection({
-  areas,
+export function BedCropGroupsSection({
+  beds,
   chips,
 }: {
-  areas: StoredGardenArea[]
+  beds: StoredGardenBed[]
   chips: string[]
 }) {
-  const globalOnly = globalCropsNotInAnyArea(chips, areas)
+  const globalOnly = globalCropsNotInAnyBed(chips, beds)
 
-  if (areas.length === 0 && globalOnly.length === 0) return null
+  if (beds.length === 0 && globalOnly.length === 0) return null
 
   return (
-    <section aria-labelledby="area-crops-heading" className="space-y-4">
-      {areas.length > 0 ? (
+    <section aria-labelledby="bed-crops-heading" className="space-y-4">
+      {beds.length > 0 ? (
         <>
           <h2
-            id="area-crops-heading"
+            id="bed-crops-heading"
             className="text-lg font-semibold tracking-tight text-stone-950"
           >
-            Your garden by area
+            Your garden by bed
           </h2>
           <div className="space-y-4">
-            {areas.map((a) => {
-              const name = a.name.trim() || 'Unnamed area'
+            {beds.map((a) => {
+              const name = a.name.trim() || 'Unnamed bed'
               const hasRowCrop = a.rows.some((r) => r.crop.trim().length > 0)
               return (
                 <div
@@ -39,7 +39,7 @@ export function AreaCropGroupsSection({
                   <h3 className="text-base font-semibold text-stone-900">{name}</h3>
                   {a.rows.length === 0 ? (
                     <p className="mt-2 text-sm text-stone-500">
-                      No rows in this area yet.
+                      No rows in this bed yet.
                     </p>
                   ) : hasRowCrop ? (
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-800">
@@ -76,16 +76,16 @@ export function AreaCropGroupsSection({
       {globalOnly.length > 0 ? (
         <div
           className={`rounded-xl bg-white px-4 py-3 ring-1 ring-stone-200 ${
-            areas.length > 0 ? 'mt-4' : ''
+            beds.length > 0 ? 'mt-4' : ''
           }`}
         >
-          {areas.length > 0 ? (
+          {beds.length > 0 ? (
             <h3 className="text-sm font-semibold text-stone-800">
               {UNASSIGNED_TITLE}
             </h3>
           ) : (
             <h2
-              id="area-crops-heading"
+              id="bed-crops-heading"
               className="text-lg font-semibold tracking-tight text-stone-950"
             >
               {UNASSIGNED_TITLE}

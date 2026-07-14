@@ -1,13 +1,13 @@
-import type { StoredGardenArea } from '../canvas/gardenStateStorage'
+import type { StoredGardenBed } from '../types/storedGarden.js'
 
 /**
- * Map stable task ids from `buildGardenTasksFromState` to an area id when known.
+ * Map stable task ids from `buildGardenTasksFromState` to an bed id when known.
  */
-export function areaIdForTask(
+export function bedIdForTask(
   taskId: string,
-  areas: StoredGardenArea[],
+  beds: StoredGardenBed[],
 ): string | null {
-  const ids = new Set(areas.map((a) => a.id))
+  const ids = new Set(beds.map((a) => a.id))
   const prefixes = [
     'water_planted_',
     'prep_soil_',

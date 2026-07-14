@@ -1,4 +1,4 @@
-import type { StoredGardenArea } from '../canvas/gardenStateStorage'
+import type { StoredGardenBed } from '../canvas/gardenStateStorage'
 
 /** First occurrence wins; trims; case-insensitive duplicate removal. */
 export function dedupeCropListPreserveOrder(items: string[]): string[] {
@@ -18,7 +18,7 @@ export function dedupeCropListPreserveOrder(items: string[]): string[] {
 /** All crops the user cares about: global chips plus every crop assigned to a bed (deduped). */
 export function unionCropsFromState(
   chips: string[],
-  areas: StoredGardenArea[],
+  beds: StoredGardenBed[],
 ): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -31,29 +31,29 @@ export function unionCropsFromState(
     out.push(t)
   }
   for (const c of chips) add(c)
-  for (const a of areas) {
+  for (const a of beds) {
     for (const r of a.rows) add(r.crop)
   }
   return out
 }
 
-/** Crops listed globally but not assigned to any area (by case-insensitive match). */
-export function globalCropsNotInAnyArea(
+/** Crops listed globally but not assigned to any bed (by case-insensitive match). */
+export function globalCropsNotInAnyBed(
   chips: string[],
-  areas: StoredGardenArea[],
+  beds: StoredGardenBed[],
 ): string[] {
-  const inArea = new Set<string>()
-  for (const a of areas) {
+  const inBed = new Set<string>()
+  for (const a of beds) {
     for (const r of a.rows) {
       const t = r.crop.trim()
-      if (t) inArea.add(t.toLowerCase())
+      if (t) inBed.add(t.toLowerCase())
     }
   }
   return dedupeCropListPreserveOrder(
     chips.filter((c) => {
       const t = c.trim()
       if (!t) return false
-      return !inArea.has(t.toLowerCase())
+      return !inBed.has(t.toLowerCase())
     }),
   )
 }

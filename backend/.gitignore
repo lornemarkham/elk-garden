@@ -3,3 +3,7 @@ node_modules
 .env
 
 /../generated/prisma
+
+# SQLite is no longer used (Postgres/Supabase via DATABASE_URL); ignore any local leftovers
+*.db
+*.db-journal

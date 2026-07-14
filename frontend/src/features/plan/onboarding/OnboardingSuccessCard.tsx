@@ -15,8 +15,8 @@ export function OnboardingSuccessCard({ onReview, onGoToTasks }: Props) {
         <div className="mx-auto mt-5 max-w-md text-left">
           <p className="text-base text-stone-700">We set up:</p>
           <ul className="mt-2 list-disc space-y-1.5 pl-5 text-base leading-relaxed text-stone-700">
-            <li>A cool-season area (ready to plant now)</li>
-            <li>A warm-season area (wait for heat)</li>
+            <li>A cool-season bed (ready to plant now)</li>
+            <li>A warm-season bed (wait for heat)</li>
             <li>Your first tasks to get started</li>
           </ul>
         </div>

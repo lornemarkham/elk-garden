@@ -69,14 +69,14 @@ function mentionsTomatoes(input: string): boolean {
 
 export function hasTomatoesInPlanInput(params: {
   crops: string[]
-  areas: Array<{ name?: string; rows?: Array<{ crop?: string }> }>
+  beds: Array<{ name?: string; rows?: Array<{ crop?: string }> }>
 }): boolean {
   return (
     params.crops.some(mentionsTomatoes) ||
-    params.areas.some(
-      (area) =>
-        mentionsTomatoes(area.name ?? '') ||
-        area.rows?.some((row) => mentionsTomatoes(row.crop ?? '')),
+    params.beds.some(
+      (bed) =>
+        mentionsTomatoes(bed.name ?? '') ||
+        bed.rows?.some((row) => mentionsTomatoes(row.crop ?? '')),
     )
   )
 }

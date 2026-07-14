@@ -26,7 +26,7 @@ export const SUN_TO_API: Record<
   unsure: 'unsure',
 }
 
-export const AREA_PRESETS: Array<{
+export const BED_PRESETS: Array<{
   id: string
   label: string
   name: string

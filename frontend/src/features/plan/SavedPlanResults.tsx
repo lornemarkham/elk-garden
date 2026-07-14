@@ -1,25 +1,25 @@
 import { useMemo, useState } from 'react'
 import type { GardenPlanResponse } from '@shared/gardenPlanContract'
-import type { StoredGardenArea } from '../canvas/gardenStateStorage'
-import { AreaCropGroupsSection } from './AreaCropGroupsSection'
+import type { StoredGardenBed } from '../canvas/gardenStateStorage'
+import { BedCropGroupsSection } from './BedCropGroupsSection'
 import { NextStepsSection } from './NextStepsSection'
 import { PlanCollapsibleSection } from './PlanCollapsibleSection'
 import { finalizeNextStepsForDisplay } from './planNextStepsFilter'
 import { SpringPlantingBucketsSection } from './SpringPlantingBucketsSection'
-import { SuggestedAreasFromInput } from './SuggestedAreasFromInput'
+import { SuggestedBedsFromInput } from './SuggestedBedsFromInput'
 
 export function SavedPlanResults({
   plan,
   chips,
-  areas,
+  beds,
   userCrops,
-  onAddArea,
+  onAddBed,
 }: {
   plan: GardenPlanResponse
   chips: string[]
-  areas: StoredGardenArea[]
+  beds: StoredGardenBed[]
   userCrops: string[]
-  onAddArea: (presetId: string) => void
+  onAddBed: (presetId: string) => void
 }) {
   const nextSteps = useMemo(
     () => finalizeNextStepsForDisplay(plan.next_steps, userCrops),
@@ -31,7 +31,7 @@ export function SavedPlanResults({
 
   return (
     <div className="space-y-8">
-      <AreaCropGroupsSection areas={areas} chips={chips} />
+      <BedCropGroupsSection beds={beds} chips={chips} />
       <SpringPlantingBucketsSection userCrops={userCrops} />
       <PlanCollapsibleSection
         id="saved-plan-suggestions"
@@ -45,7 +45,7 @@ export function SavedPlanResults({
         onOpenChange={setSuggestionsOpen}
       >
         <div className="space-y-8 pt-2">
-          <SuggestedAreasFromInput userCrops={userCrops} onAddArea={onAddArea} />
+          <SuggestedBedsFromInput userCrops={userCrops} onAddBed={onAddBed} />
           <NextStepsSection steps={nextSteps} />
         </div>
       </PlanCollapsibleSection>

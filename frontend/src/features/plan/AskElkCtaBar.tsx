@@ -13,7 +13,7 @@ export function AskElkCtaBar({
   onAsk: () => void
   /** When true, copy explains that re-running replaces the saved plan. */
   hasSavedPlan: boolean
-  /** False when draft has no crop and no area — Ask ELK stays disabled. */
+  /** False when draft has no crop and no bed — Ask ELK stays disabled. */
   canAsk: boolean
   /** Shown when canAsk is false. */
   minimumInputHint: string

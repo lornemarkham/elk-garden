@@ -14,7 +14,7 @@ import {
   loadElkGardenState,
   saveElkGardenState,
   type ElkGardenPersistedState,
-  type StoredGardenArea,
+  type StoredGardenBed,
   type StoredGardenRow,
 } from '../canvas/gardenStateStorage'
 import {
@@ -24,7 +24,7 @@ import {
 } from './elkGardenPlanStorage'
 import { fetchGeneratedTasks } from './tasksApi'
 import {
-  AREA_PRESETS,
+  BED_PRESETS,
   GOAL_LABELS,
   SUN_TO_API,
   THREATS,
@@ -53,10 +53,10 @@ import {
 import {
   dedupeCropListPreserveOrder,
   unionCropsFromState,
-} from './planAreaCrops'
+} from './planBedCrops'
 
 const MINIMUM_INPUT_HINT =
-  'Add at least one crop or one garden area to generate a useful spring plan.'
+  'Add at least one crop or one garden bed to generate a useful spring plan.'
 
 function scrollDocumentToElement(
   el: HTMLElement | null,
@@ -67,17 +67,17 @@ function scrollDocumentToElement(
   window.scrollTo({ top: Math.max(0, y), behavior })
 }
 
-function newAreaId() {
-  return `area_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+function newBedId() {
+  return `bed_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
 function newRowId() {
   return `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
-function emptyArea(): StoredGardenArea {
+function emptyBed(): StoredGardenBed {
   return {
-    id: newAreaId(),
+    id: newBedId(),
     name: '',
     size: '',
     sun: 'unsure',
@@ -86,11 +86,11 @@ function emptyArea(): StoredGardenArea {
   }
 }
 
-/** Expand last-edited bed on load; fallback to first area in list. */
+/** Expand last-edited bed on load; fallback to first bed in list. */
 function initialExpandedFromGarden(g: ElkGardenPersistedState): string | null {
-  const lid = g.lastEditedAreaId
-  if (typeof lid === 'string' && g.areas.some((a) => a.id === lid)) return lid
-  return g.areas[0]?.id ?? null
+  const lid = g.lastEditedBedId
+  if (typeof lid === 'string' && g.beds.some((a) => a.id === lid)) return lid
+  return g.beds[0]?.id ?? null
 }
 
 export function PlanPage() {
@@ -120,11 +120,11 @@ export function PlanPage() {
   const [threats, setThreats] = useState<Record<string, boolean>>(
     initialGarden.threats,
   )
-  const [areas, setAreas] = useState<StoredGardenArea[]>(initialGarden.areas)
-  const [lastEditedAreaId, setLastEditedAreaId] = useState<string | null>(() =>
+  const [beds, setBeds] = useState<StoredGardenBed[]>(initialGarden.beds)
+  const [lastEditedBedId, setLastEditedBedId] = useState<string | null>(() =>
     initialExpandedFromGarden(initialGarden),
   )
-  const [expandedAreaId, setExpandedAreaId] = useState<string | null>(() =>
+  const [expandedBedId, setExpandedBedId] = useState<string | null>(() =>
     initialExpandedFromGarden(initialGarden),
   )
   const [showPresetRow, setShowPresetRow] = useState(false)
@@ -141,7 +141,7 @@ export function PlanPage() {
 
   const [draftSections, setDraftSections] = useState({
     crops: false,
-    areas: false,
+    beds: false,
     place: false,
     threats: false,
   })
@@ -163,33 +163,33 @@ export function PlanPage() {
     })
   }, [])
 
-  const allCrops = useMemo(() => unionCropsFromState(chips, areas), [chips, areas])
+  const allCrops = useMemo(() => unionCropsFromState(chips, beds), [chips, beds])
 
-  const activateArea = useCallback((id: string) => {
-    setExpandedAreaId(id)
+  const activateBed = useCallback((id: string) => {
+    setExpandedBedId(id)
   }, [])
 
-  const toggleAreaExpand = useCallback((id: string) => {
-    setExpandedAreaId((cur) => (cur === id ? null : id))
+  const toggleBedExpand = useCallback((id: string) => {
+    setExpandedBedId((cur) => (cur === id ? null : id))
   }, [])
 
   useEffect(() => {
     if (
-      expandedAreaId &&
-      !areas.some((a) => a.id === expandedAreaId)
+      expandedBedId &&
+      !beds.some((a) => a.id === expandedBedId)
     ) {
-      setExpandedAreaId(areas[0]?.id ?? null)
+      setExpandedBedId(beds[0]?.id ?? null)
     }
-  }, [areas, expandedAreaId])
+  }, [beds, expandedBedId])
 
   useEffect(() => {
     if (
-      lastEditedAreaId &&
-      !areas.some((a) => a.id === lastEditedAreaId)
+      lastEditedBedId &&
+      !beds.some((a) => a.id === lastEditedBedId)
     ) {
-      setLastEditedAreaId(areas[0]?.id ?? null)
+      setLastEditedBedId(beds[0]?.id ?? null)
     }
-  }, [areas, lastEditedAreaId])
+  }, [beds, lastEditedBedId])
 
   useEffect(() => {
     saveElkGardenState({
@@ -199,8 +199,8 @@ export function PlanPage() {
       lastPlan: elkPlan,
       completedWeeklyTasks,
       goal,
-      areas,
-      ...(lastEditedAreaId ? { lastEditedAreaId } : {}),
+      beds,
+      ...(lastEditedBedId ? { lastEditedBedId } : {}),
     })
   }, [
     chips,
@@ -209,8 +209,8 @@ export function PlanPage() {
     elkPlan,
     completedWeeklyTasks,
     goal,
-    areas,
-    lastEditedAreaId,
+    beds,
+    lastEditedBedId,
   ])
 
   const onFile = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -265,20 +265,20 @@ export function PlanPage() {
   const toggleThreat = (id: string) =>
     setThreats((t) => ({ ...t, [id]: !t[id] }))
 
-  const updateArea = (id: string, patch: Partial<StoredGardenArea>) => {
-    setLastEditedAreaId(id)
-    setExpandedAreaId(id)
-    setAreas((list) =>
+  const updateBed = (id: string, patch: Partial<StoredGardenBed>) => {
+    setLastEditedBedId(id)
+    setExpandedBedId(id)
+    setBeds((list) =>
       list.map((row) => (row.id === id ? { ...row, ...patch } : row)),
     )
   }
 
-  const addRow = (areaId: string) => {
-    setLastEditedAreaId(areaId)
-    setExpandedAreaId(areaId)
-    setAreas((list) =>
+  const addRow = (bedId: string) => {
+    setLastEditedBedId(bedId)
+    setExpandedBedId(bedId)
+    setBeds((list) =>
       list.map((a) => {
-        if (a.id !== areaId) return a
+        if (a.id !== bedId) return a
         return {
           ...a,
           rows: [
@@ -296,12 +296,12 @@ export function PlanPage() {
     )
   }
 
-  const removeRow = (areaId: string, rowId: string) => {
-    setLastEditedAreaId(areaId)
-    setExpandedAreaId(areaId)
-    setAreas((list) =>
+  const removeRow = (bedId: string, rowId: string) => {
+    setLastEditedBedId(bedId)
+    setExpandedBedId(bedId)
+    setBeds((list) =>
       list.map((a) =>
-        a.id === areaId
+        a.id === bedId
           ? { ...a, rows: a.rows.filter((r) => r.id !== rowId) }
           : a,
       ),
@@ -309,15 +309,15 @@ export function PlanPage() {
   }
 
   const updateRow = (
-    areaId: string,
+    bedId: string,
     rowId: string,
     patch: Partial<StoredGardenRow>,
   ) => {
-    setLastEditedAreaId(areaId)
-    setExpandedAreaId(areaId)
-    setAreas((list) =>
+    setLastEditedBedId(bedId)
+    setExpandedBedId(bedId)
+    setBeds((list) =>
       list.map((a) => {
-        if (a.id !== areaId) return a
+        if (a.id !== bedId) return a
         return {
           ...a,
           rows: a.rows.map((r) =>
@@ -328,14 +328,14 @@ export function PlanPage() {
     )
   }
 
-  const removeArea = (id: string) => {
-    setAreas((list) => {
+  const removeBed = (id: string) => {
+    setBeds((list) => {
       const filtered = list.filter((a) => a.id !== id)
-      setExpandedAreaId((cur) => {
+      setExpandedBedId((cur) => {
         if (cur !== id) return cur
         return filtered[0]?.id ?? null
       })
-      setLastEditedAreaId((cur) => {
+      setLastEditedBedId((cur) => {
         if (cur !== id) return cur
         return filtered[0]?.id ?? null
       })
@@ -343,18 +343,18 @@ export function PlanPage() {
     })
   }
 
-  const addAreaFromPreset = (presetId: string) => {
-    const preset = AREA_PRESETS.find((p) => p.id === presetId)
-    const base = emptyArea()
+  const addBedFromPreset = (presetId: string) => {
+    const preset = BED_PRESETS.find((p) => p.id === presetId)
+    const base = emptyBed()
     if (preset && preset.id !== 'custom') {
       base.name = preset.name
       base.size = preset.size
       base.sun = preset.sun
       base.notes = preset.notes
     }
-    setLastEditedAreaId(base.id)
-    setExpandedAreaId(base.id)
-    setAreas((list) => [base, ...list])
+    setLastEditedBedId(base.id)
+    setExpandedBedId(base.id)
+    setBeds((list) => [base, ...list])
     setShowPresetRow(false)
   }
 
@@ -365,9 +365,9 @@ export function PlanPage() {
       location: loc,
       goalLabel: GOAL_LABELS[goal],
       threatLabels: THREATS.filter((t) => threats[t.id]).map((t) => t.label),
-      areaNames: areas.map((a) => a.name.trim() || 'Unnamed area'),
-      areaGroups: areas.map((a) => ({
-        name: a.name.trim() || 'Unnamed area',
+      bedNames: beds.map((a) => a.name.trim() || 'Unnamed bed'),
+      bedGroups: beds.map((a) => ({
+        name: a.name.trim() || 'Unnamed bed',
         rows: a.rows.map((r) => ({
           crop: r.crop,
           notes: r.notes,
@@ -377,17 +377,17 @@ export function PlanPage() {
       seasonalRulesShownInUi: loc.length > 0,
       fallbackAssumptionsLikely: computeFallbackAssumptionsLikely(
         chips,
-        areas,
+        beds,
         locationText,
       ),
     }
-  }, [chips, locationText, goal, threats, areas])
+  }, [chips, locationText, goal, threats, beds])
 
-  const canAskElk = hasMinimumPlanInput(chips, areas)
+  const canAskElk = hasMinimumPlanInput(chips, beds)
 
   const resetPlanFlow = useCallback(() => {
     const ok = window.confirm(
-      'Clear all saved garden data on this device? This removes your draft (crops, areas, location, etc.), the saved ELK plan, weekly checkmarks, and plan tasks. This cannot be undone.',
+      'Clear all saved garden data on this device? This removes your draft (crops, beds, location, etc.), the saved ELK plan, weekly checkmarks, and plan tasks. This cannot be undone.',
     )
     if (!ok) return
 
@@ -406,9 +406,9 @@ export function PlanPage() {
     setChips(dedupeCropListPreserveOrder(fresh.crops))
     setChipInput('')
     setThreats(fresh.threats)
-    setAreas(fresh.areas)
-    setLastEditedAreaId(initialExpandedFromGarden(fresh))
-    setExpandedAreaId(initialExpandedFromGarden(fresh))
+    setBeds(fresh.beds)
+    setLastEditedBedId(initialExpandedFromGarden(fresh))
+    setExpandedBedId(initialExpandedFromGarden(fresh))
     setShowPresetRow(false)
     setElkPlan(null)
     setCompletedWeeklyTasks(fresh.completedWeeklyTasks)
@@ -433,7 +433,7 @@ export function PlanPage() {
   const hasSavedPlan = !!loadElkGardenPlan()?.plan
 
   const askElk = async () => {
-    if (!hasMinimumPlanInput(chips, areas)) {
+    if (!hasMinimumPlanInput(chips, beds)) {
       setPlanError(MINIMUM_INPUT_HINT)
       return
     }
@@ -446,7 +446,7 @@ export function PlanPage() {
         goals: GOAL_LABELS[goal],
         threats: THREATS.filter((t) => threats[t.id]).map((t) => t.label),
         crops: allCrops.length ? allCrops : undefined,
-        areas: areas.map((a) => {
+        beds: beds.map((a) => {
           const flat = a.rows.map((r) => r.crop.trim()).filter(Boolean)
           const rowsPayload = a.rows.map((r, i) => ({
             row_label: `Row ${i + 1}`,
@@ -455,7 +455,7 @@ export function PlanPage() {
             width_inches: r.widthInches.trim() || undefined,
           }))
           return {
-            area_name: a.name.trim() || 'Unnamed area',
+            bed_name: a.name.trim() || 'Unnamed bed',
             size: a.size.trim() || undefined,
             sun: SUN_TO_API[a.sun],
             notes: a.notes.trim() || undefined,
@@ -473,14 +473,14 @@ export function PlanPage() {
       saveElkGardenPlanRecord({ savedAt, plan, inputsSnapshot: snapshot })
       const taskList = await fetchGeneratedTasks({
         plan,
-        areas,
+        beds,
         threats,
         userCrops: allCrops,
       })
       savePlanTasks(
         ensureTomatoesDemoTask(
           mergePlanTaskCompletions(taskList, loadPlanTasks()),
-          hasTomatoesInPlanInput({ crops: allCrops, areas }),
+          hasTomatoesInPlanInput({ crops: allCrops, beds }),
         ),
       )
     } catch (e) {
@@ -496,14 +496,14 @@ export function PlanPage() {
     const planRecord = loadElkGardenPlan()
     if (planRecord?.plan) {
       setElkPlan(planRecord.plan)
-      setAreas(garden.areas)
+      setBeds(garden.beds)
       setChips(dedupeCropListPreserveOrder(garden.crops))
       setLocationText(garden.location)
       setGoal(garden.goal)
       setThreats(garden.threats)
       const exp = initialExpandedFromGarden(garden)
-      setLastEditedAreaId(exp)
-      setExpandedAreaId(exp)
+      setLastEditedBedId(exp)
+      setExpandedBedId(exp)
       setCompletedWeeklyTasks(garden.completedWeeklyTasks)
     }
     setShowOnboardingSuccess(true)
@@ -544,7 +544,7 @@ export function PlanPage() {
         <PlanPageGuidance />
 
         <GardenPlanSummaryCard
-          areaCount={areas.length}
+          bedCount={beds.length}
           cropCount={allCrops.length}
           locationText={locationText}
           goal={goal}
@@ -578,16 +578,16 @@ export function PlanPage() {
             onGoalChange={setGoal}
             threats={threats}
             onToggleThreat={toggleThreat}
-            areas={areas}
-            expandedAreaId={expandedAreaId}
-            onToggleAreaExpand={toggleAreaExpand}
-            onActivateArea={activateArea}
+            beds={beds}
+            expandedBedId={expandedBedId}
+            onToggleBedExpand={toggleBedExpand}
+            onActivateBed={activateBed}
             showPresetRow={showPresetRow}
-            onStartAddArea={() => setShowPresetRow(true)}
+            onStartAddBed={() => setShowPresetRow(true)}
             onCancelPreset={() => setShowPresetRow(false)}
-            onAddAreaFromPreset={addAreaFromPreset}
-            onRemoveArea={removeArea}
-            onUpdateArea={updateArea}
+            onAddBedFromPreset={addBedFromPreset}
+            onRemoveBed={removeBed}
+            onUpdateBed={updateBed}
             onAddRow={addRow}
             onRemoveRow={removeRow}
             onUpdateRow={updateRow}
@@ -640,9 +640,9 @@ export function PlanPage() {
                 <SavedPlanResults
                   plan={elkPlan}
                   chips={chips}
-                  areas={areas}
+                  beds={beds}
                   userCrops={allCrops}
-                  onAddArea={addAreaFromPreset}
+                  onAddBed={addBedFromPreset}
                 />
               </div>
             </section>

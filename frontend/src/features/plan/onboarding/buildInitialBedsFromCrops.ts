@@ -1,12 +1,12 @@
 import type {
-  StoredGardenArea,
+  StoredGardenBed,
   StoredGardenRow,
 } from '../../canvas/gardenStateStorage'
-import { dedupeCropListPreserveOrder } from '../planAreaCrops'
+import { dedupeCropListPreserveOrder } from '../planBedCrops'
 import { bucketForCrop } from '../plantingTimelineVernon'
 
-function newAreaId() {
-  return `area_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+function newBedId() {
+  return `bed_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
 function newRowId() {
@@ -24,16 +24,16 @@ function rowFromCrop(crop: string): StoredGardenRow {
 }
 
 /**
- * Seed garden areas + one row per crop for first-time onboarding.
+ * Seed garden beds + one row per crop for first-time onboarding.
  * Splits warm-season vs cool-season when both are present.
  */
-export function buildInitialAreasFromCrops(crops: string[]): StoredGardenArea[] {
+export function buildInitialBedsFromCrops(crops: string[]): StoredGardenBed[] {
   const list = dedupeCropListPreserveOrder(crops).filter((c) => c.trim())
   if (list.length === 0) {
     return [
       {
-        id: newAreaId(),
-        name: 'Garden area',
+        id: newBedId(),
+        name: 'Garden bed',
         size: '',
         sun: 'unsure',
         notes: '',
@@ -50,12 +50,12 @@ export function buildInitialAreasFromCrops(crops: string[]): StoredGardenArea[] 
     else cool.push(c)
   }
 
-  const areas: StoredGardenArea[] = []
+  const beds: StoredGardenBed[] = []
 
   if (cool.length > 0) {
-    areas.push({
-      id: newAreaId(),
-      name: 'Cool-season area',
+    beds.push({
+      id: newBedId(),
+      name: 'Cool-season bed',
       size: '4 × 8 ft',
       sun: 'part_sun',
       notes: '',
@@ -63,9 +63,9 @@ export function buildInitialAreasFromCrops(crops: string[]): StoredGardenArea[] 
     })
   }
   if (warm.length > 0) {
-    areas.push({
-      id: newAreaId(),
-      name: 'Warm-season area',
+    beds.push({
+      id: newBedId(),
+      name: 'Warm-season bed',
       size: '4 × 8 ft',
       sun: 'full_sun',
       notes: '',
@@ -73,12 +73,12 @@ export function buildInitialAreasFromCrops(crops: string[]): StoredGardenArea[] 
     })
   }
 
-  if (areas.length > 0) return areas
+  if (beds.length > 0) return beds
 
   return [
     {
-      id: newAreaId(),
-      name: 'Garden area',
+      id: newBedId(),
+      name: 'Garden bed',
       size: '4 × 8 ft',
       sun: 'full_sun',
       notes: '',

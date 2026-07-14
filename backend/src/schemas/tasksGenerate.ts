@@ -11,7 +11,7 @@ const rowSchema = z.object({
   gardenLog: z.string().optional(),
 })
 
-const areaSchema = z.object({
+const bedSchema = z.object({
   id: z.string(),
   name: z.string(),
   size: z.string(),
@@ -35,7 +35,7 @@ const gardenPlanResponseSchema = z.object({
 /** Body for POST /api/tasks/generate */
 export const tasksGenerateBodySchema = z.object({
   plan: gardenPlanResponseSchema.nullable(),
-  areas: z.array(areaSchema),
+  beds: z.array(bedSchema),
   threats: z.record(z.string(), z.boolean()),
   userCrops: z.array(z.string()),
 })

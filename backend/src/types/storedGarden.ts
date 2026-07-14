@@ -13,7 +13,7 @@ export interface StoredGardenRow {
   gardenLog?: string
 }
 
-export interface StoredGardenArea {
+export interface StoredGardenBed {
   id: string
   name: string
   size: string

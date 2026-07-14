@@ -9,7 +9,7 @@ export type StoredGardenGoal = 'high_yield' | 'easy_care' | 'balanced'
 
 export type StoredSunLevel = 'full_sun' | 'part_sun' | 'shade' | 'unsure'
 
-/** One row within a bed: crop, width, optional notes (Area → Rows → Crop). */
+/** One row within a bed: crop, width, optional notes (Bed → Rows → Crop). */
 export interface StoredGardenRow {
   id: string
   crop: string
@@ -23,7 +23,7 @@ export interface StoredGardenRow {
   gardenLog?: string
 }
 
-export interface StoredGardenArea {
+export interface StoredGardenBed {
   id: string
   name: string
   size: string
@@ -44,9 +44,9 @@ export type ElkGardenPersistedState = {
   lastPlan: GardenPlanResponse | null
   completedWeeklyTasks: string[]
   goal: StoredGardenGoal
-  areas: StoredGardenArea[]
+  beds: StoredGardenBed[]
   /** Which bed was last changed — Plan UI expands this by default on load. */
-  lastEditedAreaId?: string
+  lastEditedBedId?: string
 }
 
 const GOALS = new Set<StoredGardenGoal>(['high_yield', 'easy_care', 'balanced'])
@@ -109,9 +109,9 @@ function parseGardenRow(
   }
 }
 
-function parseAreas(v: unknown): StoredGardenArea[] {
+function parseBeds(v: unknown): StoredGardenBed[] {
   if (!Array.isArray(v)) return []
-  const out: StoredGardenArea[] = []
+  const out: StoredGardenBed[] = []
   for (const row of v) {
     if (!row || typeof row !== 'object') continue
     const r = row as Record<string, unknown>
@@ -230,13 +230,17 @@ export function loadElkGardenState(): ElkGardenPersistedState {
       ? (goalRaw as StoredGardenGoal)
       : 'balanced'
 
-  const areas = base ? parseAreas(base.areas) : []
+  // `beds` replaced the legacy `areas` key when Area was renamed to Bed; fall back
+  // to the old key so existing saved layouts aren't dropped on first load.
+  const beds = base ? parseBeds('beds' in base ? base.beds : base.areas) : []
 
   const lastEditedRaw =
-    base && 'lastEditedAreaId' in base
-      ? (base as Record<string, unknown>).lastEditedAreaId
-      : undefined
-  const lastEditedAreaId =
+    base && 'lastEditedBedId' in base
+      ? (base as Record<string, unknown>).lastEditedBedId
+      : base && 'lastEditedAreaId' in base
+        ? (base as Record<string, unknown>).lastEditedAreaId
+        : undefined
+  const lastEditedBedId =
     typeof lastEditedRaw === 'string' ? lastEditedRaw : undefined
 
   return {
@@ -246,8 +250,8 @@ export function loadElkGardenState(): ElkGardenPersistedState {
     lastPlan,
     completedWeeklyTasks,
     goal,
-    areas,
-    ...(lastEditedAreaId ? { lastEditedAreaId } : {}),
+    beds,
+    ...(lastEditedBedId ? { lastEditedBedId } : {}),
   }
 }
 

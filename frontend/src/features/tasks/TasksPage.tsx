@@ -17,11 +17,11 @@ import {
   loadElkGardenState,
   saveElkGardenState,
   type ElkGardenPersistedState,
-  type StoredGardenArea,
+  type StoredGardenBed,
 } from '../canvas/gardenStateStorage'
 import { loadElkGardenPlan, ELK_GARDEN_PLAN_KEY } from '../plan/elkGardenPlanStorage'
 import { fetchGeneratedTasks } from '../plan/tasksApi'
-import { unionCropsFromState } from '../plan/planAreaCrops'
+import { unionCropsFromState } from '../plan/planBedCrops'
 import {
   loadPlanTasks,
   ensureTomatoesDemoTask,
@@ -33,17 +33,17 @@ import {
 } from '../plan/planTasksStorage'
 import type { TaskListItem } from '../../components/TaskList'
 import {
-  areaStatusBadgeClass,
-  computeAreaTimingDisplay,
+  bedStatusBadgeClass,
+  computeBedTimingDisplay,
   formatPlannedDateShort,
   plannedAlignment,
   plannedAlignmentBadgeClass,
-} from '../plan/areaTimingStatus'
+} from '../plan/bedTimingStatus'
 import {
-  areaIdForTask,
-  groupTasksByArea,
-  type AreaTaskGroup,
-} from './taskAreaGroups'
+  bedIdForTask,
+  groupTasksByBed,
+  type BedTaskGroup,
+} from './taskBedGroups'
 
 function toListItems(records: PlanTaskRecord[]): TaskListItem[] {
   return records.map((t) => ({
@@ -58,8 +58,8 @@ function toListItems(records: PlanTaskRecord[]): TaskListItem[] {
 }
 
 function firstIncompleteFromGroups(
-  todayGroups: AreaTaskGroup[],
-  upNextGroups: AreaTaskGroup[],
+  todayGroups: BedTaskGroup[],
+  upNextGroups: BedTaskGroup[],
 ): PlanTaskRecord | null {
   for (const g of todayGroups) {
     if (g.tasks.length > 0) return g.tasks[0]!
@@ -76,28 +76,28 @@ function taskDoneMessage(message: string): string {
   return `Done — ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}. Nice work.`
 }
 
-function TaskAreaTimingIntro({
-  area,
-  areaLabel,
+function TaskBedTimingIntro({
+  bed,
+  bedLabel,
 }: {
-  area: StoredGardenArea | undefined
-  areaLabel: string
+  bed: StoredGardenBed | undefined
+  bedLabel: string
 }) {
-  const timing = area ? computeAreaTimingDisplay(area) : null
-  const plannedRaw = area?.plannedPlantingDate
+  const timing = bed ? computeBedTimingDisplay(bed) : null
+  const plannedRaw = bed?.plannedPlantingDate
   const plannedOk = plannedRaw && /^\d{4}-\d{2}-\d{2}$/.test(plannedRaw)
-  const align = area && plannedOk ? plannedAlignment(area) : null
+  const align = bed && plannedOk ? plannedAlignment(bed) : null
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">
-          {areaLabel}
+          {bedLabel}
         </h4>
         {timing ? (
           <span
             className={clsx(
               'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none ring-1',
-              areaStatusBadgeClass(timing.status),
+              bedStatusBadgeClass(timing.status),
             )}
           >
             {timing.statusLabel}
@@ -135,20 +135,20 @@ function TaskAreaTimingIntro({
 
 function StartHereSection({
   task,
-  areas,
+  beds,
   onToggle,
   completedPulseIds,
 }: {
   task: PlanTaskRecord
-  areas: StoredGardenArea[]
+  beds: StoredGardenBed[]
   onToggle: (id: string) => void
   completedPulseIds?: string[]
 }) {
-  const areaId = areaIdForTask(task.id, areas)
-  const area =
-    areaId != null ? areas.find((a) => a.id === areaId) : undefined
-  const areaLabel =
-    area != null ? area.name.trim() || 'Unnamed area' : 'All garden'
+  const bedId = bedIdForTask(task.id, beds)
+  const bed =
+    bedId != null ? beds.find((a) => a.id === bedId) : undefined
+  const bedLabel =
+    bed != null ? bed.name.trim() || 'Unnamed bed' : 'All garden'
 
   return (
     <section
@@ -166,7 +166,7 @@ function StartHereSection({
         back to it later.
       </p>
       <div className="mt-4 space-y-2">
-        <TaskAreaTimingIntro area={area} areaLabel={areaLabel} />
+        <TaskBedTimingIntro bed={bed} bedLabel={bedLabel} />
         <TaskList
           items={toListItems([task])}
           onToggle={onToggle}
@@ -178,19 +178,19 @@ function StartHereSection({
   )
 }
 
-function TaskSectionByArea({
+function TaskSectionByBed({
   heading,
   subheading,
   groups,
-  areas,
+  beds,
   emptyHint,
   onToggle,
   completedPulseIds,
 }: {
   heading: string
   subheading?: string
-  groups: AreaTaskGroup[]
-  areas: StoredGardenArea[]
+  groups: BedTaskGroup[]
+  beds: StoredGardenBed[]
   emptyHint: string
   onToggle: (id: string) => void
   completedPulseIds?: string[]
@@ -214,13 +214,13 @@ function TaskSectionByArea({
       ) : (
         <div className="space-y-5">
           {groups.map((g) => {
-            const area =
-              g.areaId != null
-                ? areas.find((a) => a.id === g.areaId)
+            const bed =
+              g.bedId != null
+                ? beds.find((a) => a.id === g.bedId)
                 : undefined
             return (
               <div key={g.key} className="space-y-2">
-                <TaskAreaTimingIntro area={area} areaLabel={g.areaLabel} />
+                <TaskBedTimingIntro bed={bed} bedLabel={g.bedLabel} />
                 <TaskList
                   items={toListItems(g.tasks)}
                   onToggle={onToggle}
@@ -235,15 +235,15 @@ function TaskSectionByArea({
   )
 }
 
-function areaRowPlantingProgress(area: StoredGardenArea): {
+function bedRowPlantingProgress(bed: StoredGardenBed): {
   total: number
   planted: number
   pct: number
   allPlanted: boolean
   summaryLine: string
 } {
-  const total = area.rows.length
-  const planted = area.rows.filter((r) => r.planted).length
+  const total = bed.rows.length
+  const planted = bed.rows.filter((r) => r.planted).length
   const pct = total > 0 ? Math.round((planted / total) * 100) : 0
   const summaryLine =
     total === 0
@@ -285,8 +285,8 @@ export function TasksPage() {
   const plan = planRecord?.plan ?? null
 
   const userCrops = useMemo(
-    () => unionCropsFromState(elkState.crops, elkState.areas),
-    [elkState.crops, elkState.areas],
+    () => unionCropsFromState(elkState.crops, elkState.beds),
+    [elkState.crops, elkState.beds],
   )
 
   const [generated, setGenerated] = useState<PlanTaskRecord[] | null>(null)
@@ -306,7 +306,7 @@ export function TasksPage() {
       try {
         const g = await fetchGeneratedTasks({
           plan,
-          areas: elkState.areas,
+          beds: elkState.beds,
           threats: elkState.threats,
           userCrops,
         })
@@ -319,19 +319,19 @@ export function TasksPage() {
     return () => {
       cancelled = true
     }
-  }, [plan, elkState.areas, elkState.threats, userCrops])
+  }, [plan, elkState.beds, elkState.threats, userCrops])
 
   useEffect(() => {
     if (generated === null) return
     setTasks((prev) => {
       const next = ensureTomatoesDemoTask(
         mergePlanTaskCompletions(generated, prev),
-        hasTomatoesInPlanInput({ crops: userCrops, areas: elkState.areas }),
+        hasTomatoesInPlanInput({ crops: userCrops, beds: elkState.beds }),
       )
       savePlanTasks(next)
       return next
     })
-  }, [generated, userCrops, elkState.areas])
+  }, [generated, userCrops, elkState.beds])
 
   useEffect(() => {
     if (!taskFeedback) return
@@ -340,13 +340,13 @@ export function TasksPage() {
   }, [taskFeedback])
 
   const setRowPlanted = useCallback(
-    (areaId: string, rowId: string, planted: boolean) => {
+    (bedId: string, rowId: string, planted: boolean) => {
       setElkState((prev) => {
         const next: ElkGardenPersistedState = {
           ...prev,
-          lastEditedAreaId: areaId,
-          areas: prev.areas.map((a) =>
-            a.id !== areaId
+          lastEditedBedId: bedId,
+          beds: prev.beds.map((a) =>
+            a.id !== bedId
               ? a
               : {
                   ...a,
@@ -363,13 +363,13 @@ export function TasksPage() {
     [],
   )
 
-  const setAreaGardenLog = useCallback((areaId: string, gardenLog: string) => {
+  const setBedGardenLog = useCallback((bedId: string, gardenLog: string) => {
     setElkState((prev) => {
       const next: ElkGardenPersistedState = {
         ...prev,
-        lastEditedAreaId: areaId,
-        areas: prev.areas.map((a) =>
-          a.id === areaId ? { ...a, gardenLog } : a,
+        lastEditedBedId: bedId,
+        beds: prev.beds.map((a) =>
+          a.id === bedId ? { ...a, gardenLog } : a,
         ),
       }
       saveElkGardenState(next)
@@ -378,13 +378,13 @@ export function TasksPage() {
   }, [])
 
   const setRowGardenLog = useCallback(
-    (areaId: string, rowId: string, gardenLog: string) => {
+    (bedId: string, rowId: string, gardenLog: string) => {
       setElkState((prev) => {
         const next: ElkGardenPersistedState = {
           ...prev,
-          lastEditedAreaId: areaId,
-          areas: prev.areas.map((a) =>
-            a.id !== areaId
+          lastEditedBedId: bedId,
+          beds: prev.beds.map((a) =>
+            a.id !== bedId
               ? a
               : {
                   ...a,
@@ -426,7 +426,7 @@ export function TasksPage() {
       setTasks((prev) => {
         const next = ensureTomatoesDemoTask(
           togglePlanTask(prev, taskId),
-          hasTomatoesInPlanInput({ crops: userCrops, areas: elkState.areas }),
+          hasTomatoesInPlanInput({ crops: userCrops, beds: elkState.beds }),
         )
         savePlanTasks(next)
         return next
@@ -434,7 +434,7 @@ export function TasksPage() {
       setRecentCompletedTaskIds((prev) => [...new Set([...prev, taskId])])
       setPendingCompletedTaskIds((prev) => prev.filter((id) => id !== taskId))
     }, 2600)
-  }, [elkState.areas, pendingCompletedTaskIds, tasks, toggleTask, userCrops])
+  }, [elkState.beds, pendingCompletedTaskIds, tasks, toggleTask, userCrops])
 
   const justCompletedTaskIds = useMemo(
     () => [...new Set([...pendingCompletedTaskIds, ...recentCompletedTaskIds])],
@@ -457,7 +457,7 @@ export function TasksPage() {
     [visibleTasks],
   )
   const showCompletedStateInGroups = useCallback(
-    (groups: AreaTaskGroup[]) =>
+    (groups: BedTaskGroup[]) =>
       groups.map((g) => ({
         ...g,
         tasks: g.tasks.map((t) => visibleTaskById.get(t.id) ?? t),
@@ -472,16 +472,16 @@ export function TasksPage() {
   const upNext = incomplete.filter((t) => (t.section ?? 'up_next') === 'up_next')
 
   const todayGroups = useMemo(
-    () => groupTasksByArea(today, elkState.areas),
-    [today, elkState.areas],
+    () => groupTasksByBed(today, elkState.beds),
+    [today, elkState.beds],
   )
   const upNextGroups = useMemo(
-    () => groupTasksByArea(upNext, elkState.areas),
-    [upNext, elkState.areas],
+    () => groupTasksByBed(upNext, elkState.beds),
+    [upNext, elkState.beds],
   )
   const doneGroups = useMemo(
-    () => groupTasksByArea(done, elkState.areas),
-    [done, elkState.areas],
+    () => groupTasksByBed(done, elkState.beds),
+    [done, elkState.beds],
   )
 
   const startHereTask = useMemo(
@@ -498,8 +498,8 @@ export function TasksPage() {
   }, [incomplete, startHereTask])
 
   const upNextCombinedGroups = useMemo(
-    () => groupTasksByArea(remainingIncomplete, elkState.areas),
-    [remainingIncomplete, elkState.areas],
+    () => groupTasksByBed(remainingIncomplete, elkState.beds),
+    [remainingIncomplete, elkState.beds],
   )
   const visibleUpNextCombinedGroups = useMemo(
     () => showCompletedStateInGroups(upNextCombinedGroups),
@@ -517,60 +517,60 @@ export function TasksPage() {
     return 'Work through these when you have time — the order is flexible.'
   }, [startHereTask, remainingIncomplete.length])
 
-  const [expandedAreaId, setExpandedAreaId] = useState<string | null>(null)
-  const areasExpandInitRef = useRef(false)
-  const prevLastEditedForAreasRef = useRef(elkState.lastEditedAreaId)
+  const [expandedBedId, setExpandedBedId] = useState<string | null>(null)
+  const bedsExpandInitRef = useRef(false)
+  const prevLastEditedForBedsRef = useRef(elkState.lastEditedBedId)
 
   useEffect(() => {
-    if (elkState.areas.length === 0) {
-      setExpandedAreaId(null)
+    if (elkState.beds.length === 0) {
+      setExpandedBedId(null)
       return
     }
-    if (!areasExpandInitRef.current) {
-      areasExpandInitRef.current = true
-      const lid = elkState.lastEditedAreaId
-      setExpandedAreaId(
-        lid && elkState.areas.some((a) => a.id === lid)
+    if (!bedsExpandInitRef.current) {
+      bedsExpandInitRef.current = true
+      const lid = elkState.lastEditedBedId
+      setExpandedBedId(
+        lid && elkState.beds.some((a) => a.id === lid)
           ? lid
-          : elkState.areas[0]!.id,
+          : elkState.beds[0]!.id,
       )
       return
     }
-    setExpandedAreaId((prev) => {
-      if (prev !== null && elkState.areas.some((a) => a.id === prev)) return prev
+    setExpandedBedId((prev) => {
+      if (prev !== null && elkState.beds.some((a) => a.id === prev)) return prev
       if (prev === null) return null
-      const lid = elkState.lastEditedAreaId
-      if (lid && elkState.areas.some((a) => a.id === lid)) return lid
-      return elkState.areas[0]!.id
+      const lid = elkState.lastEditedBedId
+      if (lid && elkState.beds.some((a) => a.id === lid)) return lid
+      return elkState.beds[0]!.id
     })
-  }, [elkState.areas, elkState.lastEditedAreaId])
+  }, [elkState.beds, elkState.lastEditedBedId])
 
   useEffect(() => {
-    const lid = elkState.lastEditedAreaId
+    const lid = elkState.lastEditedBedId
     if (
-      areasExpandInitRef.current &&
+      bedsExpandInitRef.current &&
       lid &&
-      lid !== prevLastEditedForAreasRef.current &&
-      elkState.areas.some((a) => a.id === lid)
+      lid !== prevLastEditedForBedsRef.current &&
+      elkState.beds.some((a) => a.id === lid)
     ) {
-      setExpandedAreaId(lid)
+      setExpandedBedId(lid)
     }
-    prevLastEditedForAreasRef.current = lid
-  }, [elkState.lastEditedAreaId, elkState.areas])
+    prevLastEditedForBedsRef.current = lid
+  }, [elkState.lastEditedBedId, elkState.beds])
 
-  const handleGardenAreaToggle = useCallback((areaId: string) => {
+  const handleGardenBedToggle = useCallback((bedId: string) => {
     let nextExpanded: string | null = null
-    setExpandedAreaId((prev) => {
-      nextExpanded = prev === areaId ? null : areaId
+    setExpandedBedId((prev) => {
+      nextExpanded = prev === bedId ? null : bedId
       return nextExpanded
     })
     if (nextExpanded !== null) {
       const expandedId = nextExpanded
       setElkState((s) => {
-        if (s.lastEditedAreaId === expandedId) return s
+        if (s.lastEditedBedId === expandedId) return s
         const out: ElkGardenPersistedState = {
           ...s,
-          lastEditedAreaId: expandedId,
+          lastEditedBedId: expandedId,
         }
         saveElkGardenState(out)
         return out
@@ -578,7 +578,7 @@ export function TasksPage() {
     }
   }, [])
 
-  const hasGardenAreas = elkState.areas.length > 0
+  const hasGardenBeds = elkState.beds.length > 0
 
   if (isLoading) {
     return (
@@ -601,7 +601,7 @@ export function TasksPage() {
       />
       {error ? (
         <div className="mb-6 rounded-2xl bg-amber-50/90 px-4 py-3.5 text-sm leading-relaxed text-amber-950 ring-1 ring-amber-200/80 sm:px-5">
-          Demo garden preview didn’t load — your saved garden areas and tasks
+          Demo garden preview didn’t load — your saved garden beds and tasks
           below are still on this device.
         </div>
       ) : null}
@@ -633,7 +633,7 @@ export function TasksPage() {
             {visibleStartHereTask ? (
               <StartHereSection
                 task={visibleStartHereTask}
-                areas={elkState.areas}
+                beds={elkState.beds}
                 onToggle={onToggleTask}
                 completedPulseIds={justCompletedTaskIds}
               />
@@ -648,21 +648,21 @@ export function TasksPage() {
               </p>
             )}
             {startHereTask != null || remainingIncomplete.length > 0 ? (
-              <TaskSectionByArea
+              <TaskSectionByBed
                 heading="Up next"
                 subheading="Everything after your first step — work through it at your own pace."
                 groups={visibleUpNextCombinedGroups}
-                areas={elkState.areas}
+                beds={elkState.beds}
                 emptyHint={upNextEmptyHint}
                 onToggle={onToggleTask}
                 completedPulseIds={justCompletedTaskIds}
               />
             ) : null}
-            <TaskSectionByArea
+            <TaskSectionByBed
               heading="Done today"
               subheading="Completed steps stay visible here so you can see the progress you made."
               groups={visibleDoneGroups}
-              areas={elkState.areas}
+              beds={elkState.beds}
               emptyHint="Nothing here yet. Finished steps land here — tap to undo if you need to."
               onToggle={onToggleTask}
               completedPulseIds={justCompletedTaskIds}
@@ -671,20 +671,20 @@ export function TasksPage() {
         )}
       </SectionContainer>
 
-      {hasGardenAreas ? (
+      {hasGardenBeds ? (
         <SectionContainer
-          title="Garden areas & rows"
+          title="Garden beds & rows"
           subtitle="Track what’s in the ground and quick notes from the field."
         >
           <div className="space-y-3 sm:space-y-4">
-            {elkState.areas.map((a) => (
-              <GardenAreaCard
+            {elkState.beds.map((a) => (
+              <GardenBedCard
                 key={a.id}
-                area={a}
-                expanded={expandedAreaId === a.id}
-                onToggle={() => handleGardenAreaToggle(a.id)}
+                bed={a}
+                expanded={expandedBedId === a.id}
+                onToggle={() => handleGardenBedToggle(a.id)}
                 onPlantedChange={setRowPlanted}
-                onAreaLogChange={setAreaGardenLog}
+                onBedLogChange={setBedGardenLog}
                 onRowLogChange={setRowGardenLog}
               />
             ))}
@@ -692,13 +692,13 @@ export function TasksPage() {
         </SectionContainer>
       ) : (
         <SectionContainer
-          title="Garden areas & rows"
-          subtitle="Add garden areas on the Plan tab to track planting here."
+          title="Garden beds & rows"
+          subtitle="Add garden beds on the Plan tab to track planting here."
         >
           <p className="rounded-2xl bg-stone-50/80 px-4 py-4 text-sm leading-relaxed text-stone-600 ring-1 ring-stone-200/80">
-            No areas yet. Open{' '}
+            No beds yet. Open{' '}
             <span className="font-medium text-stone-800">Garden Plan</span> and
-            add an area — then you can mark rows planted and jot notes.
+            add an bed — then you can mark rows planted and jot notes.
           </p>
         </SectionContainer>
       )}
@@ -713,23 +713,23 @@ export function TasksPage() {
   )
 }
 
-function GardenAreaCard({
-  area,
+function GardenBedCard({
+  bed,
   expanded,
   onToggle,
   onPlantedChange,
-  onAreaLogChange,
+  onBedLogChange,
   onRowLogChange,
 }: {
-  area: StoredGardenArea
+  bed: StoredGardenBed
   expanded: boolean
   onToggle: () => void
-  onPlantedChange: (areaId: string, rowId: string, planted: boolean) => void
-  onAreaLogChange: (areaId: string, gardenLog: string) => void
-  onRowLogChange: (areaId: string, rowId: string, gardenLog: string) => void
+  onPlantedChange: (bedId: string, rowId: string, planted: boolean) => void
+  onBedLogChange: (bedId: string, gardenLog: string) => void
+  onRowLogChange: (bedId: string, rowId: string, gardenLog: string) => void
 }) {
-  const label = area.name.trim() || 'Unnamed area'
-  const progress = areaRowPlantingProgress(area)
+  const label = bed.name.trim() || 'Unnamed bed'
+  const progress = bedRowPlantingProgress(bed)
   return (
     <div
       className={clsx(
@@ -780,9 +780,9 @@ function GardenAreaCard({
               </span>
             </span>
           ) : null}
-          {expanded && area.size.trim() ? (
+          {expanded && bed.size.trim() ? (
             <span className="mt-1 block text-sm text-stone-500">
-              {area.size.trim()}
+              {bed.size.trim()}
             </span>
           ) : null}
         </span>
@@ -796,18 +796,18 @@ function GardenAreaCard({
       {expanded ? (
         <div className="border-t border-stone-100 pb-4 pt-1">
           <label className="block text-xs font-semibold uppercase tracking-wide text-stone-500">
-            Area log
+            Bed log
           </label>
           <textarea
-            value={area.gardenLog ?? ''}
-            onChange={(e) => onAreaLogChange(area.id, e.target.value)}
+            value={bed.gardenLog ?? ''}
+            onChange={(e) => onBedLogChange(bed.id, e.target.value)}
             rows={2}
-            placeholder="e.g. Deer tracks seen near this area"
+            placeholder="e.g. Deer tracks seen near this bed"
             className="mt-1 w-full resize-y rounded-xl border-0 bg-stone-50 px-3 py-2 text-sm leading-relaxed text-stone-900 ring-1 ring-stone-200 placeholder:text-stone-400 focus:ring-2 focus:ring-emerald-600"
           />
-          {area.rows.length > 0 ? (
+          {bed.rows.length > 0 ? (
             <div className="mt-4 space-y-3 border-t border-stone-100 pt-3">
-              {area.rows.map((r, i) => {
+              {bed.rows.map((r, i) => {
                 const crop = r.crop.trim() || 'Empty row'
                 return (
                   <div
@@ -840,7 +840,7 @@ function GardenAreaCard({
                           type="checkbox"
                           checked={!!r.planted}
                           onChange={(e) =>
-                            onPlantedChange(area.id, r.id, e.target.checked)
+                            onPlantedChange(bed.id, r.id, e.target.checked)
                           }
                           className="h-4 w-4 rounded border-stone-300 text-emerald-700 focus:ring-emerald-600"
                         />
@@ -853,7 +853,7 @@ function GardenAreaCard({
                     <textarea
                       value={r.gardenLog ?? ''}
                       onChange={(e) =>
-                        onRowLogChange(area.id, r.id, e.target.value)
+                        onRowLogChange(bed.id, r.id, e.target.value)
                       }
                       rows={2}
                       placeholder="e.g. Planted today · peas sprouting"
@@ -864,7 +864,7 @@ function GardenAreaCard({
               })}
             </div>
           ) : (
-            <p className="mt-3 text-sm text-stone-500">No rows in this area yet.</p>
+            <p className="mt-3 text-sm text-stone-500">No rows in this bed yet.</p>
           )}
         </div>
       ) : null}

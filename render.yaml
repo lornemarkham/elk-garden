@@ -5,5 +5,8 @@ services:
     branch: main
     rootDir: backend
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false

@@ -582,7 +582,7 @@ function productionExtras(garden: Garden) {
     },
     {
       id: 'p_sun',
-      title: 'Is this area getting consistent sunlight?',
+      title: 'Is this bed getting consistent sunlight?',
       body: 'Slow corners are often shade, compaction, or uneven watering.',
     },
     {

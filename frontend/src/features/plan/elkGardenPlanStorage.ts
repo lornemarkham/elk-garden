@@ -11,7 +11,7 @@ export type PlanRowSnapshot = {
 }
 
 /** One bed/zone at save time (rows preferred; crops is legacy flat list). */
-export type PlanAreaSnapshot = {
+export type PlanBedSnapshot = {
   name: string
   rows?: PlanRowSnapshot[]
   crops?: string[]
@@ -23,9 +23,9 @@ export type PlanInputsSnapshot = {
   location: string
   goalLabel: string
   threatLabels: string[]
-  areaNames: string[]
-  /** Per-area crop assignments when present. */
-  areaGroups?: PlanAreaSnapshot[]
+  bedNames: string[]
+  /** Per-bed crop assignments when present. */
+  bedGroups?: PlanBedSnapshot[]
   /** Vernon BC timeline was applicable in UI (draft had a location). */
   seasonalRulesShownInUi: boolean
   /** Sparse draft — ELK may infer beyond what you typed. */
@@ -65,15 +65,18 @@ function parseInputsSnapshot(v: unknown): PlanInputsSnapshot | undefined {
       : undefined
   if (crops === undefined) return undefined
   const location = typeof o.location === 'string' ? o.location : ''
-  const areaNames =
-    Array.isArray(o.areaNames) &&
-    o.areaNames.every((x) => typeof x === 'string')
-      ? o.areaNames
+  // `bedNames`/`bedGroups` replaced the legacy `areaNames`/`areaGroups` keys when
+  // Area was renamed to Bed; fall back so older saved plans still show their snapshot.
+  const bedNamesRaw = 'bedNames' in o ? o.bedNames : o.areaNames
+  const bedNames =
+    Array.isArray(bedNamesRaw) && bedNamesRaw.every((x) => typeof x === 'string')
+      ? bedNamesRaw
       : []
-  let areaGroups: PlanAreaSnapshot[] | undefined
-  if (Array.isArray(o.areaGroups)) {
-    const g: PlanAreaSnapshot[] = []
-    for (const row of o.areaGroups) {
+  const bedGroupsRaw = 'bedGroups' in o ? o.bedGroups : o.areaGroups
+  let bedGroups: PlanBedSnapshot[] | undefined
+  if (Array.isArray(bedGroupsRaw)) {
+    const g: PlanBedSnapshot[] = []
+    for (const row of bedGroupsRaw) {
       if (!row || typeof row !== 'object') continue
       const r = row as Record<string, unknown>
       const name = typeof r.name === 'string' ? r.name : ''
@@ -102,7 +105,7 @@ function parseInputsSnapshot(v: unknown): PlanInputsSnapshot | undefined {
         crops: cropsLegacy,
       })
     }
-    if (g.length > 0) areaGroups = g
+    if (g.length > 0) bedGroups = g
   }
   const seasonalRulesShownInUi =
     typeof o.seasonalRulesShownInUi === 'boolean'
@@ -121,8 +124,8 @@ function parseInputsSnapshot(v: unknown): PlanInputsSnapshot | undefined {
       o.threatLabels.every((x) => typeof x === 'string')
         ? o.threatLabels
         : [],
-    areaNames,
-    areaGroups,
+    bedNames,
+    bedGroups,
     seasonalRulesShownInUi,
     fallbackAssumptionsLikely,
   }

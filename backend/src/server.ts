@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createApp } from './app.js'
+import { logPrismaDatasourceComparison } from './lib/dbConnectionDiag.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 /** Load `backend/.env` — works for `src/server.ts` (dev) and `dist/backend/src/server.js` (prod). */
@@ -19,4 +20,6 @@ app.listen(PORT, () => {
   console.log(
     `[elk-garden-backend] OPENAI_API_KEY loaded: ${Boolean(process.env.OPENAI_API_KEY?.trim())}`,
   )
+  // Temporary: prove whether DATABASE_URL vs DIRECT_URL hit the same Postgres.
+  void logPrismaDatasourceComparison()
 })

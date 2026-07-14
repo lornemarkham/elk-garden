@@ -7,6 +7,7 @@ import { tasksRouter } from './routes/tasks.js'
 import { weatherRouter } from './routes/weather.js'
 import { akasoCameraLabRouter } from './routes/akasoCameraLab.js'
 import { liveSensorRouter } from './routes/liveSensor.js'
+import { debugSensorWriteRouter } from './routes/debugSensorWrite.js'
 
 export function createApp() {
   const app = express()
@@ -28,6 +29,8 @@ export function createApp() {
   app.use(liveSensorRouter)
   app.use(weatherRouter)
   app.use(akasoCameraLabRouter)
+  // TEMPORARY: Postgres write probe — delete with debugSensorWrite.ts after verification
+  app.use(debugSensorWriteRouter)
 
   return app
 }

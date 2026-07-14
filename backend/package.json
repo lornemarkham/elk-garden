@@ -7,7 +7,8 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/backend/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "prisma generate && tsc -p tsconfig.json"
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.7.0",

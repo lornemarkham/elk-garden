@@ -4,9 +4,13 @@ services:
     runtime: node
     branch: main
     rootDir: backend
-    buildCommand: npm install && npm run build
+    # migrate deploy must use DIRECT_URL (set in Prisma config). Failing migrations
+    # fail the build so we never ship a process without tables.
+    buildCommand: npm install && npx prisma migrate deploy && npm run build
     startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
         sync: false

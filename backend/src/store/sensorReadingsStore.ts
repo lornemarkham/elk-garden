@@ -41,11 +41,34 @@ export async function appendSensorReading(input: SensorReadingInput): Promise<Se
 
 /** Latest reading overall, or latest for `zoneId` when provided. */
 export async function getLatestSensorReading(zoneId?: string): Promise<SensorReading | undefined> {
-  const row = await prisma.sensorReading.findFirst({
-    where: zoneId ? { zoneId } : undefined,
-    orderBy: { receivedAt: 'desc' },
+  console.log('[sensor-readings] about to call prisma.sensorReading.findFirst', {
+    zoneId: zoneId ?? null,
   })
-  return row ? toApiReading(row) : undefined
+  try {
+    const row = await prisma.sensorReading.findFirst({
+      where: zoneId ? { zoneId } : undefined,
+      orderBy: { receivedAt: 'desc' },
+    })
+    console.log('[sensor-readings] findFirst returned', row ? { id: row.id } : null)
+    return row ? toApiReading(row) : undefined
+  } catch (err) {
+    const e = err as {
+      name?: string
+      code?: string
+      message?: string
+      meta?: unknown
+      cause?: unknown
+      stack?: string
+    }
+    console.error('[sensor-readings] findFirst FAILED — exact error dump:')
+    console.error('[sensor-readings] name:', e?.name)
+    console.error('[sensor-readings] code:', e?.code)
+    console.error('[sensor-readings] message:', e?.message)
+    console.error('[sensor-readings] meta:', JSON.stringify(e?.meta ?? null))
+    console.error('[sensor-readings] cause:', e?.cause)
+    console.error('[sensor-readings] stack:', e?.stack)
+    throw err
+  }
 }
 
 export type SensorReadingHistoryQuery = {
